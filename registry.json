@@ -311,13 +311,8 @@
       "registryDependencies": [
         "SaxonF/templates/database"
       ],
-      "files": [
-        {
-          "path": "templates/api/supabase/config.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config.toml"
-        }
-      ],
+      "files": [],
+      "docs": "# Data API template\n\nPostgREST API configuration for local development.\n\n## Configuration\n\nThe shadcn installer cannot merge `supabase/config.toml` across templates, so config is documented here instead of installed as a file. Merge the snippet below into `supabase/config.toml`.\n\n```toml\n[api]\nenabled = true\nport = 54321\nschemas = [\"public\"]\nmax_rows = 1000\nextra_search_path = [\"public\", \"extensions\"]\n```\n\n## Dependencies\n\nRequires **database**.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -382,14 +377,8 @@
       "registryDependencies": [
         "SaxonF/templates/database"
       ],
-      "files": [
-        {
-          "path": "templates/auth/supabase/config.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config.toml"
-        }
-      ],
-      "docs": "# Auth template\n\nSupabase Auth configuration for local development.\n\n## Includes\n\n- `supabase/config.toml` — auth settings including email confirmation and redirect URLs\n\n## Local email (Mailpit)\n\n`enable_confirmations` is `true` so sign-up sends a confirmation email locally. Emails are captured by Mailpit — they do not go to a real inbox.\n\nAfter `supabase start`, run `supabase status` for your project's Mailpit URL (port varies per project). Link to Mailpit from your sign-up success UI when `NEXT_PUBLIC_SUPABASE_URL` points at localhost.\n\nIf you disable confirmations in `config.toml`, update your sign-up UI to skip the \"check your email\" step.\n\n## Redirect URLs\n\n`site_url` defaults to `http://localhost:3000`. `additional_redirect_urls` includes localhost and `127.0.0.1` wildcards so Next.js on either host can complete auth redirects.\n\n## Dependencies\n\nRequires **database**.",
+      "files": [],
+      "docs": "# Auth template\n\nSupabase Auth configuration for local development.\n\n## Configuration\n\nThe shadcn installer cannot merge `supabase/config.toml` across templates, so config is documented here instead of installed as a file. Merge the snippet below into `supabase/config.toml`.\n\n```toml\n[auth]\nenabled = true\nsite_url = \"http://localhost:3000\"\nadditional_redirect_urls = [\n  \"http://localhost:3000/**\",\n  \"https://localhost:3000/**\",\n  \"http://127.0.0.1:3000/**\",\n  \"https://127.0.0.1:3000/**\",\n]\njwt_expiry = 3600\nenable_signup = true\n\n[auth.email]\nenable_signup = true\ndouble_confirm_changes = true\nenable_confirmations = true\n```\n\n## Local email (Mailpit)\n\n`enable_confirmations` is `true` so sign-up sends a confirmation email locally. Emails are captured by Mailpit — they do not go to a real inbox.\n\nAfter `supabase start`, run `supabase status` for your project's Mailpit URL (port varies per project). Link to Mailpit from your sign-up success UI when `NEXT_PUBLIC_SUPABASE_URL` points at localhost.\n\nIf you disable confirmations in `config.toml`, update your sign-up UI to skip the \"check your email\" step.\n\n## Redirect URLs\n\n`site_url` defaults to `http://localhost:3000`. `additional_redirect_urls` includes localhost and `127.0.0.1` wildcards so Next.js on either host can complete auth redirects.\n\n## Dependencies\n\nRequires **database**.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -450,14 +439,8 @@
         "Core"
       ],
       "registryDependencies": [],
-      "files": [
-        {
-          "path": "templates/database/supabase/config.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config.toml"
-        }
-      ],
-      "docs": "# Database template\n\nBase Supabase project configuration for local development.\n\n## Includes\n\n- `supabase/config.toml` — database and seed settings\n\n## Declarative schemas and migrations\n\nTemplates ship SQL under `supabase/schemas/`. Supabase applies declarative schemas only after they exist in a migration. On a fresh project:\n\n1. Install templates and merge any `seed.sql` files from multiple templates into one file (later installs overwrite `seed.sql` — keep RBAC seed data when adding other templates).\n2. Use an empty or comment-only `seed.sql` for the first boot if seed data references tables that do not exist yet.\n3. Run `supabase start` (or `supabase db start`).\n4. Generate the initial migration: `supabase db diff -f initial_schema`\n5. Restore seed data, then run `supabase db reset`.\n\nSkipping step 4 causes `db reset` to run seed SQL before RBAC and other tables exist.\n\n## Table permissions\n\n`db diff` does not always emit `GRANT` statements for the `authenticated` role. Templates that expose tables through PostgREST include grants in their schema files. If you add tables manually, end each schema file with:\n\n```sql\ngrant select, insert, update, delete on table public.<table> to authenticated;\ngrant usage, select on all sequences in schema public to authenticated;\n```\n\nRLS policies are not evaluated when the role lacks table-level `SELECT`/`INSERT`/`UPDATE`/`DELETE` grants.\n\n## Dependencies\n\nNone. Other templates depend on this one.",
+      "files": [],
+      "docs": "# Database template\n\nBase Supabase project configuration for local development.\n\n## Configuration\n\nThe shadcn installer cannot merge `supabase/config.toml` across templates, so config is documented here instead of installed as a file. Merge the snippet below into `supabase/config.toml` (run `supabase init` first if the file does not exist).\n\n```toml\n[db]\nenabled = true\nport = 54322\nmajor_version = 15\n\n[db.seed]\nenabled = true\nsql_paths = [\"./seed.sql\"]\n```\n\nWhen you add more templates, merge each template's config section from its docs (`npx shadcn@latest view SaxonF/templates/<id>`).\n\n## Declarative schemas and migrations\n\nTemplates ship SQL under `supabase/schemas/`. Supabase applies declarative schemas only after they exist in a migration. On a fresh project:\n\n1. Install templates, merge `config.toml` sections from template docs, and merge any `seed.sql` files from multiple templates into one file (later installs overwrite `seed.sql` — keep RBAC seed data when adding other templates).\n2. Use an empty or comment-only `seed.sql` for the first boot if seed data references tables that do not exist yet.\n3. Run `supabase start` (or `supabase db start`).\n4. Generate the initial migration: `supabase db diff -f initial_schema`\n5. Restore seed data, then run `supabase db reset`.\n\nSkipping step 4 causes `db reset` to run seed SQL before RBAC and other tables exist.\n\n## Table permissions\n\n`db diff` does not always emit `GRANT` statements for the `authenticated` role. Templates that expose tables through PostgREST include grants in their schema files. If you add tables manually, end each schema file with:\n\n```sql\ngrant select, insert, update, delete on table public.<table> to authenticated;\ngrant usage, select on all sequences in schema public to authenticated;\n```\n\nRLS policies are not evaluated when the role lacks table-level `SELECT`/`INSERT`/`UPDATE`/`DELETE` grants.\n\n## Dependencies\n\nNone. Other templates depend on this one.",
       "meta": {
         "version": "1.0.0",
         "defaultEnabled": true,
@@ -564,13 +547,8 @@
         "Core"
       ],
       "registryDependencies": [],
-      "files": [
-        {
-          "path": "templates/functions/supabase/config.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config.toml"
-        }
-      ],
+      "files": [],
+      "docs": "# Edge Functions template\n\nEdge Functions runtime configuration for local development.\n\n## Configuration\n\nThe shadcn installer cannot merge `supabase/config.toml` across templates, so config is documented here instead of installed as a file. Merge the snippet below into `supabase/config.toml`.\n\n```toml\n[edge_runtime]\nenabled = true\npolicy = \"oneshot\"\ninspector_port = 8083\n```\n\n## Dependencies\n\nNone.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -1019,13 +997,8 @@
       "registryDependencies": [
         "SaxonF/templates/database"
       ],
-      "files": [
-        {
-          "path": "templates/storage/supabase/config.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config.toml"
-        }
-      ],
+      "files": [],
+      "docs": "# Storage template\n\nS3-compatible object storage configuration for local development.\n\n## Configuration\n\nThe shadcn installer cannot merge `supabase/config.toml` across templates, so config is documented here instead of installed as a file. Merge the snippet below into `supabase/config.toml`.\n\n```toml\n[storage]\nenabled = true\nfile_size_limit = \"50MB\"\n```\n\n## Dependencies\n\nRequires **database**.",
       "meta": {
         "version": "1.0.0",
         "tags": [
