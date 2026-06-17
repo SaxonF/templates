@@ -21,20 +21,13 @@ Memory rows can store arbitrary JSON payloads. Add the **ai-vector-search** or *
 
 ### MCP tools
 
-`agent-chat` discovers tools from MCP servers and exposes them to the AI SDK model call. By default, it attempts to connect to the local `mcp-server` Edge Function at:
+`agent-chat` discovers tools from MCP servers and exposes them to the AI SDK model call.
 
-```text
-${SUPABASE_URL}/functions/v1/mcp-server
-```
+**Default behavior**
 
-You can also add rows to `public.agent_mcp_servers`:
+`agent-chat` automatically connects to this project's `mcp-server` Edge Function at `${SUPABASE_URL}/functions/v1/mcp-server` and forwards the caller's JWT. You do not need to pass `mcpServers` from the browser for that.
 
-```sql
-insert into public.agent_mcp_servers (name, url)
-values ('project', 'https://<project-ref>.supabase.co/functions/v1/mcp-server');
-```
-
-or pass request-scoped MCP servers:
+**Minimal client example**
 
 ```ts
 const response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {
@@ -45,18 +38,33 @@ const response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {
   },
   body: JSON.stringify({
     sessionId,
-    message: 'List the public tables in my project',
-    mcpServers: [
-      {
-        name: 'project',
-        url: `${supabaseUrl}/functions/v1/mcp-server`,
-      },
-    ],
+    message: 'List my notes',
   }),
 })
 ```
 
-Tool names are namespaced as `<server>_<tool>`, so a `list_tables` tool from the local MCP server is exposed to the model as `project_list_tables`.
+**Configuring MCP servers (persistent)**
+
+```sql
+insert into public.agent_mcp_servers (name, url)
+values
+  ('project', '/functions/v1/mcp-server'),  -- relative path; resolved server-side
+  ('external', 'https://api.example.com/mcp'); -- external host; used as-is
+```
+
+**Request-scoped overrides** — only for additional servers or explicit header overrides:
+
+```ts
+mcpServers: [{ name: 'external', url: 'https://api.example.com/mcp' }]
+```
+
+| URL shape | Resolved to |
+| --------- | ----------- |
+| `/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |
+| `https://<ref>.supabase.co/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |
+| `https://other-host/...` | unchanged |
+
+Tool names are namespaced as `<server>_<tool>` (e.g. `project_list_notes`). Mention this in app system prompts if you customize behavior.
 
 ## Dependencies
 
@@ -71,7 +79,7 @@ Tool names are namespaced as `<server>_<tool>`, so a `list_tables` tool from the
 
 - `ai-vector-search` — pgvector similarity over memory embeddings
 - `ai-automatic-embeddings` — keep embeddings in sync via triggers
-- `mcp-server` — local Edge Function MCP server the agent can call for project tools
+- `mcp-server` — Edge Function MCP server the agent connects to automatically when installed; no client-side MCP configuration required
 
 ## Getting started
 
@@ -93,4 +101,6 @@ MCP tools expose JSON Schema. The AI SDK expects Zod or a `jsonSchema()` wrapper
 
 - Run `supabase functions serve agent-chat --no-verify-jwt` and watch the terminal for MCP load errors and model failures.
 - `agent-chat` streams error text to the client on model or tool failures instead of returning an empty 200 response.
-- MCP server load failures are logged server-side; check that `${SUPABASE_URL}/functions/v1/mcp-server` is reachable and the user's JWT is forwarded in the `Authorization` header.
+- If the model invents tool names, MCP discovery likely failed — check Edge Function logs for `failed to load MCP tools` or `no MCP tools loaded`.
+- Do not pass browser/public Supabase URLs into `mcpServers`; `agent-chat` resolves same-project function URLs via `SUPABASE_URL` itself.
+- User-scoped MCP tools require the caller JWT; `agent-chat` forwards `Authorization` automatically.

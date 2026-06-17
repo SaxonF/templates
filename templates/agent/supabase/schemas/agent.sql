@@ -34,7 +34,12 @@ create table if not exists public.agent_mcp_servers (
   updated_at timestamptz default now()
 );
 
-comment on table public.agent_mcp_servers is 'MCP servers whose tools can be exposed to the streaming agent endpoint. Avoid storing long-lived secrets in headers.';
+comment on table public.agent_mcp_servers is 'MCP servers whose tools can be exposed to the streaming agent endpoint. url may be a relative function path (/functions/v1/...) or an external absolute URL. Avoid storing long-lived secrets in headers.';
+
+-- Optional seed: documents the intended relative-path pattern for the bundled mcp-server.
+insert into public.agent_mcp_servers (name, url)
+values ('project', '/functions/v1/mcp-server')
+on conflict (name) do nothing;
 
 create index if not exists agent_memories_session_id_idx on public.agent_memories (session_id);
 

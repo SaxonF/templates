@@ -12,7 +12,7 @@ const MAX_HISTORY_MESSAGES = 24
 
 const mcpServerSchema = z.object({
   name: z.string().min(1),
-  url: z.string().url(),
+  url: z.string().min(1).optional(),
   headers: z.record(z.string()).optional(),
 })
 
@@ -25,7 +25,13 @@ const requestSchema = z.object({
   mcpServers: z.array(mcpServerSchema).optional(),
 })
 
-type AgentMcpServer = z.infer<typeof mcpServerSchema>
+type AgentMcpServerInput = z.infer<typeof mcpServerSchema>
+
+type AgentMcpServer = {
+  name: string
+  url: string
+  headers?: Record<string, string>
+}
 
 type AgentMemory = {
   role: 'user' | 'assistant' | 'system' | 'tool'
@@ -93,7 +99,15 @@ Deno.serve(async (req) => {
   })
 
   const history = await loadHistory(serviceClient, sessionId)
-  const mcpServers = await loadMcpServers(serviceClient, body.mcpServers, authHeader)
+
+  let mcpServers: AgentMcpServer[]
+  try {
+    mcpServers = await loadMcpServers(serviceClient, body.mcpServers, authHeader)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return Response.json({ error: message }, { status: 400 })
+  }
+
   const tools = await buildMcpTools(mcpServers)
 
   const result = streamText({
@@ -213,9 +227,38 @@ function toCoreMessages(memories: AgentMemory[]): CoreMessage[] {
     }))
 }
 
+function resolveMcpUrl(url: string): string {
+  if (url.startsWith('/')) {
+    return `${supabaseUrl}${url}`
+  }
+
+  try {
+    const { pathname } = new URL(url)
+    if (pathname.startsWith('/functions/v1/')) {
+      return `${supabaseUrl}${pathname}`
+    }
+  } catch {
+    // Not an absolute URL — leave as-is.
+  }
+
+  return url
+}
+
+function mergeMcpHeaders(
+  configured: Record<string, string> | undefined,
+  authHeader: string
+): Record<string, string> | undefined {
+  if (!authHeader) return configured
+
+  return {
+    ...(configured ?? {}),
+    Authorization: configured?.Authorization ?? authHeader,
+  }
+}
+
 async function loadMcpServers(
   supabase: ReturnType<typeof createClient>,
-  requestServers: AgentMcpServer[] | undefined,
+  requestServers: AgentMcpServerInput[] | undefined,
   authHeader: string
 ): Promise<AgentMcpServer[]> {
   const { data } = await supabase
@@ -229,14 +272,39 @@ async function loadMcpServers(
     headers: normalizeHeaders(server.headers),
   }))
 
-  const defaultLocalServer = {
+  const configuredByName = new Map(configuredServers.map((server) => [server.name, server]))
+
+  const resolvedRequestServers = (requestServers ?? []).map((server) => {
+    if (server.url) {
+      return { name: server.name, url: server.url, headers: server.headers }
+    }
+
+    const configured = configuredByName.get(server.name)
+    if (!configured) {
+      throw new Error(`unknown MCP server: ${server.name}`)
+    }
+
+    return {
+      name: server.name,
+      url: configured.url,
+      headers: server.headers ?? configured.headers,
+    }
+  })
+
+  const defaultProjectServer: AgentMcpServer = {
     name: 'project',
     url: `${supabaseUrl}/functions/v1/mcp-server`,
-    headers: authHeader ? { Authorization: authHeader } : undefined,
   }
 
-  const servers = [...configuredServers, ...(requestServers ?? [])]
-  return dedupeServers(servers.length > 0 ? servers : [defaultLocalServer])
+  return dedupeServers([
+    defaultProjectServer,
+    ...configuredServers,
+    ...resolvedRequestServers,
+  ]).map((server) => ({
+    ...server,
+    url: resolveMcpUrl(server.url),
+    headers: mergeMcpHeaders(server.headers, authHeader),
+  }))
 }
 
 async function buildMcpTools(servers: AgentMcpServer[]): Promise<ToolSet> {
@@ -264,7 +332,13 @@ async function buildMcpTools(servers: AgentMcpServer[]): Promise<ToolSet> {
     })
   )
 
-  return Object.fromEntries(entries.flat())
+  const tools = Object.fromEntries(entries.flat())
+
+  if (Object.keys(tools).length === 0 && servers.length > 0) {
+    console.error('agent-chat: no MCP tools loaded', { servers: servers.map((server) => server.name) })
+  }
+
+  return tools
 }
 
 async function listMcpTools(server: AgentMcpServer): Promise<McpToolDefinition[]> {

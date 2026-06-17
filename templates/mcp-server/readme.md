@@ -2,7 +2,7 @@
 
 Scaffolds a Model Context Protocol server as a Supabase Edge Function. The function speaks JSON-RPC over HTTP and exposes tools that are declared through a small registry.
 
-This composes with the **Agent** template: `agent-chat` can connect to this Edge Function and expose its tools to the model. By default, the agent looks for a local MCP server at `${SUPABASE_URL}/functions/v1/mcp-server`; you can also register additional servers in `public.agent_mcp_servers`.
+This composes with the **Agent** template: when the mcp-server template is installed, `agent-chat` registers it automatically at `${SUPABASE_URL}/functions/v1/mcp-server` and forwards the caller's JWT. No client-side MCP configuration is required. You can also register additional servers in `public.agent_mcp_servers`.
 
 ## Includes
 
