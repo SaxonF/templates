@@ -4,14 +4,7 @@ Edge Functions runtime configuration for local development.
 
 ## Configuration
 
-The shadcn installer cannot merge `supabase/config.toml` across templates, so config is documented here instead of installed as a file. Merge the snippet below into `supabase/config.toml`.
-
-```toml
-[edge_runtime]
-enabled = true
-policy = "oneshot"
-inspector_port = 8083
-```
+This template installs `supabase/config/functions.toml` — a partial config fragment. Merge its sections into `supabase/config.toml` alongside any other fragments under `supabase/config/*.toml`.
 
 ## Dependencies
 

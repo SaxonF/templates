@@ -4,26 +4,7 @@ Supabase Auth configuration for local development.
 
 ## Configuration
 
-The shadcn installer cannot merge `supabase/config.toml` across templates, so config is documented here instead of installed as a file. Merge the snippet below into `supabase/config.toml`.
-
-```toml
-[auth]
-enabled = true
-site_url = "http://localhost:3000"
-additional_redirect_urls = [
-  "http://localhost:3000/**",
-  "https://localhost:3000/**",
-  "http://127.0.0.1:3000/**",
-  "https://127.0.0.1:3000/**",
-]
-jwt_expiry = 3600
-enable_signup = true
-
-[auth.email]
-enable_signup = true
-double_confirm_changes = true
-enable_confirmations = true
-```
+This template installs `supabase/config/auth.toml` — a partial config fragment. Merge its sections into `supabase/config.toml` alongside any other fragments under `supabase/config/*.toml`.
 
 ## Local email (Mailpit)
 

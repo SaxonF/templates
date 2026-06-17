@@ -1,6 +1,6 @@
 # Supabase templates
 
-A [shadcn GitHub registry](https://ui.shadcn.com/docs/registry/github) of Supabase project templates. Install SQL schemas and Edge Functions into your project with the shadcn CLI. `config.toml` settings are documented in each template's readme for manual merge.
+A [shadcn GitHub registry](https://ui.shadcn.com/docs/registry/github) of Supabase project templates. Install SQL schemas and Edge Functions into your project with the shadcn CLI. Config is shipped as per-template fragments under `supabase/config/*.toml` for you or your agent to merge into `supabase/config.toml`.
 
 **Registry address:** `SaxonF/templates`
 
@@ -59,7 +59,7 @@ shadcn resolves and installs required dependencies from the same registry when n
 
 ### What gets installed
 
-Each item references files from `templates/<id>/supabase/` in the repository. Those files are installed into matching paths in your project (e.g. `~/supabase/schemas/*.sql`, `~/supabase/functions/*/index.ts`). Templates that need `config.toml` changes document snippets in their readme — merge those into `supabase/config.toml` by hand (the shadcn installer does not merge config across templates).
+Each item references files from `templates/<id>/supabase/` in the repository. Those files are installed into matching paths in your project (e.g. `~/supabase/schemas/*.sql`, `~/supabase/functions/*/index.ts`, `~/supabase/config/database.toml`). Merge every installed fragment under `supabase/config/*.toml` into `supabase/config.toml` — the shadcn installer does not merge config across templates.
 
 ## Repository layout
 
@@ -71,6 +71,7 @@ Each item references files from `templates/<id>/supabase/` in the repository. Th
 │       ├── readme.md             # Optional docs (included in registry item)
 │       ├── template.json         # Optional metadata source (preferred for edits)
 │       └── supabase/             # Template source files
+│           ├── config/           # Partial config.toml fragments
 │           ├── schemas/
 │           ├── functions/
 │           └── seed.sql
