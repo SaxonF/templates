@@ -1,0 +1,24 @@
+{
+  "name": "supabase-templates",
+  "version": "0.0.0",
+  "description": "Supabase templates as a shadcn-compatible GitHub registry",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "sync-registry": "tsx scripts/sync-registry.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "4.20.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/supabase/templates.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.24.0"
+}
