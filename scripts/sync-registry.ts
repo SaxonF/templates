@@ -1,9 +1,8 @@
-import { access, readdir, readFile, writeFile } from 'node:fs/promises'
+import { access, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REGISTRY_SCHEMA = 'https://ui.shadcn.com/schema/registry.json'
-const REGISTRY_ITEM_SCHEMA = 'https://ui.shadcn.com/schema/registry-item.json'
 const REGISTRY_NAME = 'supabase-templates'
 const REGISTRY_HOMEPAGE = 'https://github.com/SaxonF/templates'
 const REGISTRY_GITHUB_SLUG = 'SaxonF/templates'
@@ -42,29 +41,30 @@ const defaultPackageRoot = path.join(path.dirname(fileURLToPath(import.meta.url)
 
 export async function syncRegistry(packageRoot = defaultPackageRoot) {
   const templateIds = await listTemplateIds(packageRoot)
-  const includePaths: string[] = []
+  const items = []
 
   for (const templateId of templateIds) {
     const templateDir = path.join(packageRoot, 'templates', templateId)
-    const summary = await readTemplateSummary(templateDir, templateId)
+    const summary = await readTemplateSummary(packageRoot, templateDir, templateId)
     const relativeFilePaths = await listFiles(path.join(templateDir, 'supabase'))
     const docs = await readOptionalReadme(templateDir)
-    const item = templateSummaryToRegistryItem({
-      summary,
-      fileRefs: createTemplateFileRefs(relativeFilePaths),
-      docs,
-    })
 
-    const itemPath = path.join(templateDir, 'registry.json')
-    await writeFile(itemPath, `${JSON.stringify(item, null, 2)}\n`)
-    includePaths.push(path.posix.join('templates', templateId, 'registry.json'))
+    items.push(
+      templateSummaryToRegistryItem({
+        summary,
+        fileRefs: createTemplateFileRefs(templateId, relativeFilePaths),
+        docs,
+      })
+    )
+
+    await removeLegacyTemplateRegistry(path.join(templateDir, 'registry.json'))
   }
 
   const rootRegistry = {
     $schema: REGISTRY_SCHEMA,
     name: REGISTRY_NAME,
     homepage: REGISTRY_HOMEPAGE,
-    include: includePaths,
+    items,
   }
 
   await writeFile(
@@ -74,14 +74,38 @@ export async function syncRegistry(packageRoot = defaultPackageRoot) {
 }
 
 async function listTemplateIds(packageRoot: string): Promise<string[]> {
+  const templatesDir = path.join(packageRoot, 'templates')
+
+  try {
+    const entries = await readdir(templatesDir, { withFileTypes: true })
+    const fromDisk = entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b))
+
+    if (fromDisk.length > 0) {
+      return fromDisk
+    }
+  } catch {
+    // Fall through to registry.json discovery.
+  }
+
   const registryPath = path.join(packageRoot, 'registry.json')
   const manifest = JSON.parse(await readFile(registryPath, 'utf8')) as {
     templates?: string[]
     include?: string[]
+    items?: Array<{ name?: string }>
   }
 
   if (Array.isArray(manifest.templates) && manifest.templates.length > 0) {
     return manifest.templates
+  }
+
+  if (Array.isArray(manifest.items) && manifest.items.length > 0) {
+    return manifest.items
+      .map((item) => item.name)
+      .filter((templateId): templateId is string => Boolean(templateId))
+      .sort((a, b) => a.localeCompare(b))
   }
 
   if (Array.isArray(manifest.include) && manifest.include.length > 0) {
@@ -93,15 +117,14 @@ async function listTemplateIds(packageRoot: string): Promise<string[]> {
       .filter((templateId): templateId is string => Boolean(templateId))
   }
 
-  const entries = await readdir(path.join(packageRoot, 'templates'), { withFileTypes: true })
-
-  return entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b))
+  throw new Error('No templates found in templates/ or registry.json')
 }
 
-async function readTemplateSummary(templateDir: string, templateId: string) {
+async function readTemplateSummary(
+  packageRoot: string,
+  templateDir: string,
+  templateId: string
+): Promise<TemplateSummary> {
   const templateJsonPath = path.join(templateDir, 'template.json')
 
   if (await fileExists(templateJsonPath)) {
@@ -114,21 +137,60 @@ async function readTemplateSummary(templateDir: string, templateId: string) {
     return summary
   }
 
-  const registryPath = path.join(templateDir, 'registry.json')
-  const item = JSON.parse(await readFile(registryPath, 'utf8'))
+  const legacyRegistryPath = path.join(templateDir, 'registry.json')
+
+  if (await fileExists(legacyRegistryPath)) {
+    return summaryFromRegistryItem(readRegistryItem(JSON.parse(await readFile(legacyRegistryPath, 'utf8'))))
+  }
+
+  const rootItem = await readRootRegistryItem(packageRoot, templateId)
+
+  if (rootItem) {
+    return summaryFromRegistryItem(rootItem)
+  }
+
+  throw new Error(
+    `Template "${templateId}" is missing metadata. Add templates/${templateId}/template.json`
+  )
+}
+
+async function readRootRegistryItem(
+  packageRoot: string,
+  templateId: string
+): Promise<Record<string, unknown> | undefined> {
+  const registryPath = path.join(packageRoot, 'registry.json')
+  const manifest = JSON.parse(await readFile(registryPath, 'utf8'))
+
+  if (!Array.isArray(manifest.items)) {
+    return undefined
+  }
+
+  const item = manifest.items.find(
+    (candidate: unknown) => isRecord(candidate) && candidate.name === templateId
+  )
+
+  return item && isRecord(item) ? item : undefined
+}
+
+function summaryFromRegistryItem(item: Record<string, unknown>): TemplateSummary {
+  const meta = isRecord(item.meta) ? item.meta : {}
 
   return parseTemplateSummary({
     id: item.name,
     name: item.title ?? item.name,
     description: item.description ?? '',
-    category: item.categories?.[0] ?? item.meta?.category ?? 'Core',
-    version: item.meta?.version ?? '1.0.0',
-    tags: item.meta?.tags,
-    dependencies: item.meta?.dependencies,
-    defaultEnabled: item.meta?.defaultEnabled,
-    author: item.meta?.author,
-    repository: item.meta?.repository,
-    license: item.meta?.license,
+    category: Array.isArray(item.categories) ? item.categories[0] : meta.category ?? 'Core',
+    version: meta.version ?? '1.0.0',
+    tags: meta.tags,
+    dependencies:
+      meta.dependencies ??
+      registryDependenciesToTemplateDependencies(
+        Array.isArray(item.registryDependencies) ? item.registryDependencies : undefined
+      ),
+    defaultEnabled: meta.defaultEnabled,
+    author: meta.author,
+    repository: meta.repository,
+    license: meta.license,
   })
 }
 
@@ -173,8 +235,64 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
+async function removeLegacyTemplateRegistry(registryPath: string) {
+  if (!(await fileExists(registryPath))) {
+    return
+  }
+
+  await unlink(registryPath)
+}
+
 function toRegistryDependencyRef(templateId: string): string {
   return `${REGISTRY_GITHUB_SLUG}/${templateId}`
+}
+
+function registryDependenciesToTemplateDependencies(
+  registryDependencies?: string[]
+): TemplateDependencies | undefined {
+  if (!registryDependencies?.length) {
+    return undefined
+  }
+
+  const required = registryDependencies.map(parseRegistryDependencyRef).filter(Boolean)
+
+  return required.length > 0 ? { required } : undefined
+}
+
+function parseRegistryDependencyRef(ref: string): string {
+  const normalized = ref.trim()
+  const prefix = `${REGISTRY_GITHUB_SLUG}/`
+
+  if (normalized.startsWith(prefix)) {
+    return normalized.slice(prefix.length)
+  }
+
+  const slashIndex = normalized.indexOf('/')
+  if (slashIndex === -1) {
+    return normalized
+  }
+
+  return normalized.slice(slashIndex + 1)
+}
+
+function readRegistryItem(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error('Registry file must be an object')
+  }
+
+  if (Array.isArray(value.items) && value.items.length > 0) {
+    const item = value.items[0]
+    if (!isRecord(item)) {
+      throw new Error('Registry item must be an object')
+    }
+    return item
+  }
+
+  if (typeof value.name === 'string' && typeof value.type === 'string') {
+    return value
+  }
+
+  throw new Error('Registry file must define items or a registry item')
 }
 
 function templateSummaryToRegistryItem({
@@ -189,7 +307,6 @@ function templateSummaryToRegistryItem({
   const requiredDeps = summary.dependencies?.required ?? []
 
   return {
-    $schema: REGISTRY_ITEM_SCHEMA,
     name: summary.id,
     type: 'registry:item',
     title: summary.name,
@@ -211,12 +328,15 @@ function templateSummaryToRegistryItem({
   }
 }
 
-function createTemplateFileRefs(relativeFilePaths: string[]): RegistryFileRef[] {
+function createTemplateFileRefs(
+  templateId: string,
+  relativeFilePaths: string[]
+): RegistryFileRef[] {
   return relativeFilePaths.map((relativeFilePath) => {
     const targetPath = `supabase/${relativeFilePath}`
 
     return {
-      path: targetPath,
+      path: `templates/${templateId}/${targetPath}`,
       type: 'registry:file',
       target: `~/${targetPath}`,
     }

@@ -2,36 +2,1263 @@
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "supabase-templates",
   "homepage": "https://github.com/SaxonF/templates",
-  "include": [
-    "templates/database/registry.json",
-    "templates/todos/registry.json",
-    "templates/functions/registry.json",
-    "templates/storage/registry.json",
-    "templates/auth/registry.json",
-    "templates/api/registry.json",
-    "templates/security-rls/registry.json",
-    "templates/multi-tenant-rbac/registry.json",
-    "templates/multi-tenant-rbac-edge-auth/registry.json",
-    "templates/auth-email/registry.json",
-    "templates/storage-avatars/registry.json",
-    "templates/storage-pdf-thumbnails/registry.json",
-    "templates/storage-image-colors/registry.json",
-    "templates/storage-image-blurhash/registry.json",
-    "templates/realtime-comments/registry.json",
-    "templates/functions-stripe-webhook/registry.json",
-    "templates/analytics-events/registry.json",
-    "templates/observability-logs/registry.json",
-    "templates/queues/registry.json",
-    "templates/ai-vector-search/registry.json",
-    "templates/agent/registry.json",
-    "templates/ai-automatic-embeddings/registry.json",
-    "templates/ai-rag-pipeline/registry.json",
-    "templates/ai-storage-rag-ingest/registry.json",
-    "templates/durable-workflows/registry.json",
-    "templates/app-rate-limits/registry.json",
-    "templates/functions-resend-email/registry.json",
-    "templates/presence-rooms/registry.json",
-    "templates/feature-flags/registry.json",
-    "templates/mcp-server/registry.json"
+  "items": [
+    {
+      "name": "agent",
+      "type": "registry:item",
+      "title": "Agent",
+      "description": "Streaming AI SDK agent endpoint with session persistence, memory, and MCP tool access",
+      "categories": [
+        "AI"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/api",
+        "SaxonF/templates/auth",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/agent/supabase/functions/agent-chat/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/agent-chat/index.ts"
+        },
+        {
+          "path": "templates/agent/supabase/schemas/agent.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/agent.sql"
+        }
+      ],
+      "docs": "# Agent template\n\nBuild persistent AI agents on Supabase with a streaming chat endpoint, session history, long-term memory, and MCP tool access. The generated `agent-chat` Edge Function uses the AI SDK to stream model responses back to clients while persisting user and assistant messages in Postgres.\n\nThe agent can call tools from connected MCP servers. If you also add the **mcp-server** template, the agent can use that local Edge Function MCP server as one of its tool sources.\n\n## What's included\n\n| Asset         | Path                                      | Purpose                                      |\n| ------------- | ----------------------------------------- | -------------------------------------------- |\n| Schema        | `supabase/schemas/agent.sql`              | Sessions, messages, memory, MCP servers, RLS |\n| Edge Function | `supabase/functions/agent-chat/index.ts`  | Streaming AI SDK chat endpoint               |\n\n### Sessions and messages\n\nEach session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response.\n\n### Memory and recall\n\nMemory rows can store arbitrary JSON payloads. When combined with **ai-vector-search** or **ai-automatic-embeddings**, embeddings enable similarity search over past context before the model runs.\n\n### MCP tools\n\n`agent-chat` discovers tools from MCP servers and exposes them to the AI SDK model call. By default, it attempts to connect to the local `mcp-server` Edge Function at:\n\n```text\n${SUPABASE_URL}/functions/v1/mcp-server\n```\n\nYou can also add rows to `public.agent_mcp_servers`:\n\n```sql\ninsert into public.agent_mcp_servers (name, url)\nvalues ('project', 'https://<project-ref>.supabase.co/functions/v1/mcp-server');\n```\n\nor pass request-scoped MCP servers:\n\n```ts\nconst response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {\n  method: 'POST',\n  headers: {\n    Authorization: `Bearer ${session.access_token}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    sessionId,\n    message: 'List the public tables in my project',\n    mcpServers: [\n      {\n        name: 'project',\n        url: `${supabaseUrl}/functions/v1/mcp-server`,\n      },\n    ],\n  }),\n})\n```\n\nTool names are namespaced as `<server>_<tool>`, so a `list_tables` tool from the local MCP server is exposed to the model as `project_list_tables`.\n\n## Dependencies\n\n**Required**\n\n- `database` — base Supabase project config\n- `api` — REST/GraphQL surface for client access\n- `auth` — user-scoped sessions and RLS\n- `functions` — Edge Functions runtime\n\n**Optional**\n\n- `ai-vector-search` — pgvector similarity over memory embeddings\n- `ai-automatic-embeddings` — keep embeddings in sync via triggers\n- `mcp-server` — local Edge Function MCP server the agent can call for project tools\n\n## Getting started\n\n1. Add this template (and its required dependencies) to your composition.\n2. Run `supabase db reset` or apply migrations locally to create agent tables.\n3. Set model provider secrets, for example `supabase secrets set OPENAI_API_KEY=...`.\n4. Deploy Edge Functions: `supabase functions deploy agent-chat`.\n5. From your app, POST `{ message, sessionId? }` to `agent-chat` and read the streamed text response.\n\nFor production, review RLS policies in `agent.sql`, restrict service-role usage to server-side agent loops, and avoid storing long-lived third-party MCP secrets directly in `agent_mcp_servers.headers`.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "ai",
+          "agents",
+          "memory",
+          "sessions",
+          "pgvector",
+          "tools",
+          "mcp",
+          "streaming",
+          "functions"
+        ],
+        "category": "AI",
+        "dependencies": {
+          "required": [
+            "database",
+            "api",
+            "auth",
+            "functions"
+          ],
+          "optional": [
+            "ai-vector-search",
+            "ai-automatic-embeddings",
+            "mcp-server"
+          ]
+        }
+      }
+    },
+    {
+      "name": "ai-automatic-embeddings",
+      "type": "registry:item",
+      "title": "Automatic Embeddings",
+      "description": "Queue, triggers, and Edge Function scaffold to generate and sync embeddings automatically",
+      "categories": [
+        "AI"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/functions",
+        "SaxonF/templates/ai-vector-search"
+      ],
+      "files": [
+        {
+          "path": "templates/ai-automatic-embeddings/supabase/functions/embed/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/embed/index.ts"
+        },
+        {
+          "path": "templates/ai-automatic-embeddings/supabase/schemas/embeddings.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/embeddings.sql"
+        },
+        {
+          "path": "templates/ai-automatic-embeddings/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
+        }
+      ],
+      "docs": "# Automatic embeddings template\n\nKeeps document embeddings in sync using database triggers and an Edge Function embed worker.\n\n## Includes\n\n- Embeddings schema and queue tables\n- `embed` Edge Function for batch embedding\n- Seed data for local development\n\n## Dependencies\n\nRequires **database**, **api**, and **functions**. Works best with **ai-vector-search** for similarity queries.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "ai",
+          "embeddings",
+          "pgmq",
+          "pg_cron",
+          "openai"
+        ],
+        "category": "AI",
+        "dependencies": {
+          "required": [
+            "database",
+            "functions",
+            "ai-vector-search"
+          ],
+          "optional": [
+            "queues"
+          ]
+        }
+      }
+    },
+    {
+      "name": "ai-rag-pipeline",
+      "type": "registry:item",
+      "title": "RAG Pipeline",
+      "description": "Turn-key retrieval-augmented generation: ingest text via an Edge Function, auto-chunk and embed, then query for similar passages",
+      "categories": [
+        "AI"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/api",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/ai-rag-pipeline/supabase/functions/rag-embed/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/rag-embed/index.ts"
+        },
+        {
+          "path": "templates/ai-rag-pipeline/supabase/functions/rag-ingest/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/rag-ingest/index.ts"
+        },
+        {
+          "path": "templates/ai-rag-pipeline/supabase/functions/rag-query/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/rag-query/index.ts"
+        },
+        {
+          "path": "templates/ai-rag-pipeline/supabase/schemas/rag.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/rag.sql"
+        },
+        {
+          "path": "templates/ai-rag-pipeline/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
+        }
+      ],
+      "docs": "# RAG pipeline template\n\nA turn-key retrieval-augmented generation setup. POST text to `rag-ingest` and it is chunked, embedded, and stored. POST a question to `rag-query` and the top matching chunks come back, ready to drop into a model prompt.\n\n## How it works\n\n1. Client calls `rag-ingest` with `{ source, content, metadata? }`.\n2. The function inserts a `public.rag_documents` row and splits the content into ~1,000-character chunks in `public.rag_chunks`.\n3. A trigger enqueues each chunk on the `rag_embedding_jobs` `pgmq` queue.\n4. A `pg_cron` job drains the queue every 10 seconds and invokes the `rag-embed` worker.\n5. The worker calls OpenAI's embedding API and writes the vectors back to `rag_chunks`.\n6. Clients call `rag-query` with a question — the function embeds the query and returns the closest chunks via the `match_rag_chunks` SQL helper.\n\n## Includes\n\n- `supabase/schemas/rag.sql` — documents, chunks, HNSW index, queue, cron, and trigger\n- `supabase/functions/rag-ingest/index.ts` — accepts text, splits into chunks\n- `supabase/functions/rag-embed/index.ts` — batch worker invoked by `pg_cron`\n- `supabase/functions/rag-query/index.ts` — embeds a query and returns matches\n- `supabase/seed.sql` — local `project_url` secret used by `pg_net`\n\n## Configuration\n\nSet `OPENAI_API_KEY` on the project (`supabase secrets set OPENAI_API_KEY=...`). The pipeline uses `text-embedding-3-small` (1536 dimensions); change `embedding_dim` in `rag.sql` and the model name in the worker if you switch.\n\n## Dependencies\n\nRequires **database**, **api**, and **functions**. Optional: **queues** (the schema enables `pgmq` itself) and **ai-vector-search** if you want the generic `documents` table side by side.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "ai",
+          "rag",
+          "embeddings",
+          "pgvector",
+          "pgmq",
+          "openai"
+        ],
+        "category": "AI",
+        "dependencies": {
+          "required": [
+            "database",
+            "api",
+            "functions"
+          ],
+          "optional": [
+            "queues",
+            "ai-vector-search"
+          ]
+        }
+      }
+    },
+    {
+      "name": "ai-storage-rag-ingest",
+      "type": "registry:item",
+      "title": "Storage RAG Ingest",
+      "description": "Ingest text and markdown files from Storage into the existing RAG pipeline",
+      "categories": [
+        "AI"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/storage",
+        "SaxonF/templates/functions",
+        "SaxonF/templates/ai-rag-pipeline"
+      ],
+      "files": [
+        {
+          "path": "templates/ai-storage-rag-ingest/supabase/functions/rag-file-ingest/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/rag-file-ingest/index.ts"
+        },
+        {
+          "path": "templates/ai-storage-rag-ingest/supabase/schemas/storage-rag-ingest.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/storage-rag-ingest.sql"
+        }
+      ],
+      "docs": "# Storage RAG ingest template\n\nExtends **RAG Pipeline** with file uploads. Files uploaded to the private `rag-files` bucket are downloaded by an Edge Function, converted to text, and inserted into the existing `rag_documents` and `rag_chunks` tables.\n\n## How it works\n\n1. A user uploads a `.txt`, `.md`, or `.markdown` file to `rag-files/<user_id>/...`.\n2. A trigger on `storage.objects` creates a `public.rag_file_ingestions` row.\n3. The trigger invokes `rag-file-ingest` through `pg_net`.\n4. The function downloads the file, extracts UTF-8 text, chunks it, and inserts rows into the existing RAG tables.\n5. The ingestion row is updated to `ready` or `failed`.\n\n## Includes\n\n- `supabase/schemas/storage-rag-ingest.sql` - bucket, policies, tracking table, and upload trigger\n- `supabase/functions/rag-file-ingest/index.ts` - Storage download and RAG insert worker\n\n## Configuration\n\nRequires **RAG Pipeline**. The Edge Function uses `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, which are injected automatically in hosted projects. For local development, set the `project_url` Vault secret to the local Functions URL.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "ai",
+          "rag",
+          "storage",
+          "embeddings",
+          "files",
+          "functions"
+        ],
+        "category": "AI",
+        "dependencies": {
+          "required": [
+            "database",
+            "storage",
+            "functions",
+            "ai-rag-pipeline"
+          ]
+        }
+      }
+    },
+    {
+      "name": "ai-vector-search",
+      "type": "registry:item",
+      "title": "Vector Search",
+      "description": "pgvector extension with documents table and HNSW index for semantic search",
+      "categories": [
+        "AI"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/api"
+      ],
+      "files": [
+        {
+          "path": "templates/ai-vector-search/supabase/schemas/vector.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/vector.sql"
+        }
+      ],
+      "docs": "# Vector search template\n\nAdds pgvector-backed storage and SQL helpers for similarity search over embeddings.\n\n## Includes\n\n- Vector extension setup and document embedding tables\n- Search functions for nearest-neighbor queries\n\n## Dependencies\n\nRequires **database**. Often combined with **ai-automatic-embeddings** for kept-in-sync vectors.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "ai",
+          "pgvector",
+          "embeddings",
+          "semantic-search"
+        ],
+        "category": "AI",
+        "dependencies": {
+          "required": [
+            "database",
+            "api"
+          ]
+        }
+      }
+    },
+    {
+      "name": "analytics-events",
+      "type": "registry:item",
+      "title": "Product Analytics",
+      "description": "Event table and indexes for lightweight product analytics",
+      "categories": [
+        "Analytics"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/analytics-events/supabase/schemas/analytics.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/analytics.sql"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "analytics",
+          "events",
+          "database"
+        ],
+        "category": "Analytics",
+        "dependencies": {
+          "required": [
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "api",
+      "type": "registry:item",
+      "title": "Data API",
+      "description": "PostgREST API for database access over HTTP",
+      "categories": [
+        "API"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/api/supabase/config.toml",
+          "type": "registry:file",
+          "target": "~/supabase/config.toml"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "api",
+          "rest",
+          "postgrest"
+        ],
+        "category": "API",
+        "dependencies": {
+          "required": [
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "app-rate-limits",
+      "type": "registry:item",
+      "title": "App Rate Limits",
+      "description": "Application-level usage quotas and cost guards with fixed-window and token-bucket helpers",
+      "categories": [
+        "Security"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/api"
+      ],
+      "files": [
+        {
+          "path": "templates/app-rate-limits/supabase/schemas/app-rate-limits.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/app-rate-limits.sql"
+        }
+      ],
+      "docs": "# App rate limits template\n\nAdds application-level quotas for product behavior. This does not replace Supabase Auth, Realtime, or Edge platform limits. Use it for limits like \"10 AI generations per user per day\", \"100 exports per organization per hour\", or \"3 invite emails per workspace per minute\".\n\n## Includes\n\n- Rule table for fixed-window and token-bucket limits\n- Counter and bucket state tables\n- `public.consume_app_rate_limit(...)` RPC for atomic checks and consumption\n- `public.reset_app_rate_limit(...)` RPC for admin resets\n\n## Example\n\n```sql\ninsert into public.app_rate_limit_rules (\n  key,\n  algorithm,\n  limit_count,\n  window_seconds\n)\nvalues ('ai.generations.daily', 'fixed_window', 10, 86400);\n\nselect *\nfrom public.consume_app_rate_limit('ai.generations.daily', auth.uid()::text);\n```",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "rate-limits",
+          "quotas",
+          "usage",
+          "security",
+          "cost-controls"
+        ],
+        "category": "Security",
+        "dependencies": {
+          "required": [
+            "database",
+            "api"
+          ]
+        }
+      }
+    },
+    {
+      "name": "auth",
+      "type": "registry:item",
+      "title": "Auth",
+      "description": "User authentication and authorization service",
+      "categories": [
+        "Auth"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/auth/supabase/config.toml",
+          "type": "registry:file",
+          "target": "~/supabase/config.toml"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "auth",
+          "users",
+          "sessions"
+        ],
+        "category": "Auth",
+        "dependencies": {
+          "required": [
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "auth-email",
+      "type": "registry:item",
+      "title": "Email Authentication",
+      "description": "Email/password authentication with user profiles and RLS",
+      "categories": [
+        "Auth"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/auth",
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/auth-email/supabase/schemas/auth.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/auth.sql"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "auth",
+          "profiles",
+          "rls",
+          "email"
+        ],
+        "category": "Auth",
+        "dependencies": {
+          "required": [
+            "auth",
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "database",
+      "type": "registry:item",
+      "title": "Database",
+      "description": "PostgreSQL database with schemas and seed support",
+      "categories": [
+        "Core"
+      ],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "templates/database/supabase/config.toml",
+          "type": "registry:file",
+          "target": "~/supabase/config.toml"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "defaultEnabled": true,
+        "tags": [
+          "database",
+          "postgres"
+        ],
+        "category": "Core"
+      }
+    },
+    {
+      "name": "durable-workflows",
+      "type": "registry:item",
+      "title": "Durable Workflows",
+      "description": "Workflow runs, retryable steps, attempts, queues, and an Edge Function worker scaffold",
+      "categories": [
+        "Database"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/durable-workflows/supabase/functions/workflow-worker/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/workflow-worker/index.ts"
+        },
+        {
+          "path": "templates/durable-workflows/supabase/schemas/workflows.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/workflows.sql"
+        }
+      ],
+      "docs": "# Durable workflows template\n\nAdds a Postgres-backed workflow runner for long-running or retryable product work. Use it for imports, exports, document processing, billing reconciliation, AI batch work, or any task that should survive request timeouts.\n\n## How it works\n\n1. Call `public.enqueue_workflow(...)` to create a workflow run and enqueue it in `pgmq`.\n2. A `pg_cron` job drains the queue and invokes the `workflow-worker` Edge Function.\n3. The worker marks the run `running`, records an attempt, and dispatches by `workflow_type`.\n4. Successful runs are marked `succeeded`; failures are retried until `max_attempts`, then moved to `dead_letter`.\n\n## Includes\n\n- `supabase/schemas/workflows.sql` - workflow tables, enqueue helper, queue dispatcher, and cron job\n- `supabase/functions/workflow-worker/index.ts` - Edge Function worker scaffold with retry handling\n\n## Configuration\n\nThe generated worker intentionally includes a small dispatch registry. Add your workflow handlers inside `handlers` in `workflow-worker/index.ts`.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "workflows",
+          "background-jobs",
+          "pgmq",
+          "pg_cron",
+          "functions",
+          "retries"
+        ],
+        "category": "Database",
+        "dependencies": {
+          "required": [
+            "database",
+            "functions"
+          ],
+          "optional": [
+            "queues"
+          ]
+        }
+      }
+    },
+    {
+      "name": "feature-flags",
+      "type": "registry:item",
+      "title": "Feature Flags",
+      "description": "Projects, environments, rollout rules, variants, overrides, and SQL flag evaluation",
+      "categories": [
+        "Database"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/api",
+        "SaxonF/templates/auth"
+      ],
+      "files": [
+        {
+          "path": "templates/feature-flags/supabase/schemas/feature-flags.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/feature-flags.sql"
+        }
+      ],
+      "docs": "# Feature flags template\n\nAdds a Postgres-backed feature flag model with environments, variants, JSONB audience rules, subject overrides, audit events, and an evaluation RPC.\n\n## Includes\n\n- Projects and environments\n- Flags with global enablement and rollout percentage\n- Optional variants with weights\n- Audience rules using JSONB containment against caller attributes\n- Per-subject overrides\n- `public.evaluate_feature_flag(...)` RPC\n\n## Example\n\n```sql\nselect *\nfrom public.evaluate_feature_flag(\n  project_slug => 'app',\n  environment_key => 'production',\n  flag_key => 'new_onboarding',\n  subject_key => auth.uid()::text,\n  attributes => '{\"plan\": \"pro\"}'\n);\n```\n\nAudience rules match when `attributes @> conditions`, so a rule with `{\"plan\": \"pro\"}` matches callers whose attributes include that key/value pair.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "feature-flags",
+          "experiments",
+          "rollouts",
+          "targeting",
+          "database"
+        ],
+        "category": "Database",
+        "dependencies": {
+          "required": [
+            "database",
+            "api",
+            "auth"
+          ]
+        }
+      }
+    },
+    {
+      "name": "functions",
+      "type": "registry:item",
+      "title": "Edge Functions",
+      "description": "Deno-based serverless functions at the edge",
+      "categories": [
+        "Core"
+      ],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "templates/functions/supabase/config.toml",
+          "type": "registry:file",
+          "target": "~/supabase/config.toml"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "functions",
+          "edge",
+          "serverless",
+          "deno"
+        ],
+        "category": "Core"
+      }
+    },
+    {
+      "name": "functions-resend-email",
+      "type": "registry:item",
+      "title": "Resend Email",
+      "description": "Queued transactional email delivery with Resend, Edge Functions, and delivery status tracking",
+      "categories": [
+        "Integrations"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/functions-resend-email/supabase/functions/resend-webhook/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/resend-webhook/index.ts"
+        },
+        {
+          "path": "templates/functions-resend-email/supabase/functions/send-email/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/send-email/index.ts"
+        },
+        {
+          "path": "templates/functions-resend-email/supabase/schemas/resend-email.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/resend-email.sql"
+        }
+      ],
+      "docs": "# Resend email template\n\nAdds a queued transactional email pipeline using Resend. Application code enqueues an email in Postgres, `pg_cron` invokes an Edge Function worker, and delivery status is tracked in `public.email_messages`.\n\n## How it works\n\n1. Call `public.enqueue_email(...)`.\n2. The email row is inserted with `queued` status and a message is sent to the `email_jobs` queue.\n3. A cron job invokes the `send-email` worker with queued jobs.\n4. The worker calls Resend and updates the row to `sent` or `failed`.\n5. The `resend-webhook` function provides a small status update placeholder for Resend webhooks.\n\n## Configuration\n\nSet these secrets:\n\n```sh\nsupabase secrets set RESEND_API_KEY=...\nsupabase secrets set RESEND_FROM_EMAIL=\"Acme <hello@example.com>\"\n```\n\n## Includes\n\n- `supabase/schemas/resend-email.sql` - email table, queue helpers, and cron dispatcher\n- `supabase/functions/send-email/index.ts` - Resend worker\n- `supabase/functions/resend-webhook/index.ts` - delivery webhook placeholder",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "email",
+          "resend",
+          "functions",
+          "pgmq",
+          "transactional"
+        ],
+        "category": "Integrations",
+        "dependencies": {
+          "required": [
+            "database",
+            "functions"
+          ],
+          "optional": [
+            "queues"
+          ]
+        }
+      }
+    },
+    {
+      "name": "functions-stripe-webhook",
+      "type": "registry:item",
+      "title": "Stripe Webhook",
+      "description": "Edge Function scaffold for receiving Stripe webhooks",
+      "categories": [
+        "Ecommerce"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/functions",
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/functions-stripe-webhook/supabase/functions/stripe-webhook/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/stripe-webhook/index.ts"
+        },
+        {
+          "path": "templates/functions-stripe-webhook/supabase/schemas/billing.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/billing.sql"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "stripe",
+          "webhook",
+          "functions"
+        ],
+        "category": "Ecommerce",
+        "dependencies": {
+          "required": [
+            "functions",
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "mcp-server",
+      "type": "registry:item",
+      "title": "MCP Server",
+      "description": "Edge Function MCP server with a tool registry for exposing project capabilities to MCP clients",
+      "categories": [
+        "AI"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/api",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/mcp-server/supabase/functions/mcp-server/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/index.ts"
+        },
+        {
+          "path": "templates/mcp-server/supabase/functions/mcp-server/registry.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/registry.ts"
+        },
+        {
+          "path": "templates/mcp-server/supabase/functions/mcp-server/tools/echo.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/echo.ts"
+        },
+        {
+          "path": "templates/mcp-server/supabase/functions/mcp-server/tools/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/index.ts"
+        },
+        {
+          "path": "templates/mcp-server/supabase/functions/mcp-server/tools/list-tables.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/list-tables.ts"
+        },
+        {
+          "path": "templates/mcp-server/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
+        }
+      ],
+      "docs": "# MCP server template\n\nScaffolds a Model Context Protocol server as a Supabase Edge Function. The function speaks JSON-RPC over HTTP and exposes tools that are declared through a small registry.\n\nThis composes with the **Agent** template: `agent-chat` can connect to this Edge Function and expose its tools to the model. By default, the agent looks for a local MCP server at `${SUPABASE_URL}/functions/v1/mcp-server`; you can also register additional servers in `public.agent_mcp_servers`.\n\n## Includes\n\n- `supabase/functions/mcp-server/index.ts` — JSON-RPC entrypoint handling `initialize`, `tools/list`, and `tools/call`\n- `supabase/functions/mcp-server/registry.ts` — `registerTool` API and tool typings\n- `supabase/functions/mcp-server/tools/` — one file per tool, imported from `tools/index.ts`\n\n## Adding a tool\n\n1. Create a new file under `supabase/functions/mcp-server/tools/`, e.g. `tools/my-tool.ts`.\n2. Call `registerTool({ name, description, inputSchema, handler })` at module scope.\n3. Import the new file from `tools/index.ts` so it self-registers at boot.\n\n## Dependencies\n\nRequires **database**, **api**, and **functions**.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "mcp",
+          "ai",
+          "tools",
+          "functions"
+        ],
+        "category": "AI",
+        "dependencies": {
+          "required": [
+            "database",
+            "api",
+            "functions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "multi-tenant-rbac",
+      "type": "registry:item",
+      "title": "Multi-tenant RBAC",
+      "description": "Organizations, membership roles, permissions, and tenant-scoped RLS policies",
+      "categories": [
+        "Auth"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/auth",
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/multi-tenant-rbac/supabase/schemas/authorization.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/authorization.sql"
+        },
+        {
+          "path": "templates/multi-tenant-rbac/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
+        }
+      ],
+      "docs": "# Multi-tenant RBAC template\n\nOrganization-scoped authorization for SaaS applications. Membership in an organization assigns a role, roles grant permissions, and RLS policies call `authorize(organization_id, permission)`.\n\nUse this template when users can belong to more than one organization and their permissions should be different in each organization.\n\n## Includes\n\n- Organizations and organization memberships\n- Organization-scoped roles and permissions\n- `create_organization()` bootstrap helper\n- `authorize()` helper for tenant-aware RLS policies\n- Example `projects` table with scalable tenant policies\n\n## How it works\n\nEvery tenant-owned row stores an `organization_id`. The current user's role for that organization is stored in `organization_members`, and each role receives permissions through `role_permissions`.\n\nRLS policies should check both tenant membership and the requested action by calling:\n\n```sql\npublic.authorize(organization_id, 'resource.action')\n```\n\nThat helper returns `true` only when the signed-in user is a member of the row's organization and their role grants the requested permission.\n\n## Getting started\n\nCreate an organization from your app after the user signs in:\n\n```sql\nselect public.create_organization('Acme Inc', 'acme');\n```\n\nThe creator is automatically inserted into `organization_members` as the `owner`.\n\nInvite another user by inserting a membership row:\n\n```sql\ninsert into public.organization_members (organization_id, user_id, role)\nvalues\n  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'member');\n```\n\nThe insert is allowed only if the current user has `members.invite` for that organization. Assigning elevated roles such as `admin` or `owner` requires `members.update`.\n\n## Default roles\n\nThe seed file grants these permissions:\n\n| Role     | Intended use                                                       |\n| -------- | ------------------------------------------------------------------ |\n| `owner`  | Full organization, membership, and project control.                |\n| `admin`  | Manage organization settings, invite members, and manage projects. |\n| `member` | Read organization and membership data, and create/update projects. |\n\nAdjust `supabase/seed.sql` before production if your app needs a stricter default. For example, remove `projects.create` or `projects.update` from `member` for read-only members.\n\n## Writing RLS policies\n\nFor tenant-owned tables, add an `organization_id` column and enable RLS:\n\n```sql\ncreate table public.documents (\n  id uuid primary key default gen_random_uuid(),\n  organization_id uuid references public.organizations on delete cascade not null,\n  title text not null,\n  body text,\n  created_at timestamptz default now()\n);\n\ncreate index documents_organization_id_idx\non public.documents (organization_id);\n\nalter table public.documents enable row level security;\n```\n\nAdd permissions for the new resource:\n\n```sql\nalter type public.app_permission add value 'documents.read';\nalter type public.app_permission add value 'documents.create';\nalter type public.app_permission add value 'documents.update';\nalter type public.app_permission add value 'documents.delete';\n\ninsert into public.role_permissions (role, permission)\nvalues\n  ('owner', 'documents.read'),\n  ('owner', 'documents.create'),\n  ('owner', 'documents.update'),\n  ('owner', 'documents.delete'),\n  ('admin', 'documents.read'),\n  ('admin', 'documents.create'),\n  ('admin', 'documents.update'),\n  ('admin', 'documents.delete'),\n  ('member', 'documents.read')\non conflict do nothing;\n```\n\nThen write one policy per operation:\n\n```sql\ncreate policy \"Authorized members can read documents\"\non public.documents\nfor select\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.read')));\n\ncreate policy \"Authorized members can create documents\"\non public.documents\nfor insert\nto authenticated\nwith check ((select public.authorize(organization_id, 'documents.create')));\n\ncreate policy \"Authorized members can update documents\"\non public.documents\nfor update\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.update')))\nwith check ((select public.authorize(organization_id, 'documents.update')));\n\ncreate policy \"Authorized members can delete documents\"\non public.documents\nfor delete\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.delete')));\n```\n\nUse `with check` on inserts and updates so users cannot create or move rows into organizations where they do not have permission.\n\n## Common policy patterns\n\nRead access for any organization member:\n\n```sql\nusing ((select public.authorize(organization_id, 'documents.read')))\n```\n\nWrite access for admins and owners only:\n\n```sql\nwith check ((select public.authorize(organization_id, 'documents.create')))\n```\n\nOwner-only access can be modeled as a permission that only `owner` receives:\n\n```sql\nalter type public.app_permission add value 'billing.manage';\n\ninsert into public.role_permissions (role, permission)\nvalues ('owner', 'billing.manage')\non conflict do nothing;\n```\n\nThen use it in a policy:\n\n```sql\nusing ((select public.authorize(organization_id, 'billing.manage')))\n```\n\n## Choosing permissions\n\nPrefer permissions that describe product actions rather than database internals:\n\n```text\nprojects.read\nprojects.create\nprojects.update\nprojects.delete\nmembers.invite\nbilling.manage\n```\n\nThis keeps policies stable when the schema changes and makes it easier to map UI actions to backend access.\n\n## Notes\n\nThis template does not rely on JWT custom claims for authorization. The database checks the current user's organization membership at query time, so a user can safely have different roles in different organizations.\n\n## Edge Functions\n\nFor shared TypeScript helpers that call `authorize()` from Edge Functions, add the **Edge RBAC Helpers** template. It adds `supabase/functions/_shared` helpers without creating a new function node in the composer diagram.\n\n## Dependencies\n\nRequires **database** and **auth**.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "multi-tenant",
+          "organizations",
+          "rbac",
+          "permissions",
+          "rls",
+          "saas"
+        ],
+        "category": "Auth",
+        "dependencies": {
+          "required": [
+            "auth",
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "multi-tenant-rbac-edge-auth",
+      "type": "registry:item",
+      "title": "Edge RBAC Helpers",
+      "description": "Enforce organization RBAC in Edge Functions next to your app code—authorization at the application layer instead of in RLS policies",
+      "categories": [
+        "Auth"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/multi-tenant-rbac",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/multi-tenant-rbac-edge-auth/supabase/functions/_shared/auth.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/auth.ts"
+        },
+        {
+          "path": "templates/multi-tenant-rbac-edge-auth/supabase/functions/_shared/authorize.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/authorize.ts"
+        },
+        {
+          "path": "templates/multi-tenant-rbac-edge-auth/supabase/functions/_shared/responses.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/responses.ts"
+        },
+        {
+          "path": "templates/multi-tenant-rbac-edge-auth/supabase/functions/_shared/types.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/types.ts"
+        }
+      ],
+      "docs": "# Edge RBAC Helpers template\n\nShared helpers for enforcing organization RBAC in Edge Functions, next to your application code. Use this when you want authorization at the application layer instead of relying on Postgres RLS policies.\n\nThe helpers use the **multi-tenant-rbac** schema (`public.authorize`) but run checks in your function handler before privileged logic executes. Import them from `../_shared/` to verify the caller's JWT and required permissions.\n\n## Includes\n\n- `supabase/functions/_shared/types.ts` — `AppPermission` and `AppRole` types aligned with the SQL enums\n- `supabase/functions/_shared/responses.ts` — small JSON error helpers\n- `supabase/functions/_shared/auth.ts` — user-scoped Supabase client and `requireUser`\n- `supabase/functions/_shared/authorize.ts` — `hasPermission`, `requirePermission`, and organization header helpers\n\nThese files live under `_shared` so they do not appear as deployable Edge Functions in the project diagram. They are still merged into the generated project and visible in the file explorer.\n\n## Example\n\n```ts\nimport 'jsr:@supabase/functions-js/edge-runtime.d.ts'\n\nimport { requireUser } from '../_shared/auth.ts'\nimport { getOrganizationId, requirePermission } from '../_shared/authorize.ts'\n\nDeno.serve(async (req) => {\n  const authResult = await requireUser(req)\n  if ('response' in authResult) return authResult.response\n\n  const organizationId = getOrganizationId(req)\n  if (!organizationId) {\n    return Response.json({ error: 'missing x-organization-id header' }, { status: 400 })\n  }\n\n  const permissionResult = await requirePermission(\n    authResult.client,\n    organizationId,\n    'projects.create'\n  )\n  if ('response' in permissionResult) return permissionResult.response\n\n  // business logic with authResult.client (RLS-scoped)\n  return Response.json({ ok: true })\n})\n```\n\nPass the active organization on each request (for example `x-organization-id`) so permission checks target the correct tenant.\n\n## Dependencies\n\nRequires **multi-tenant-rbac** and **functions** (which also pulls in **database**).",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "multi-tenant",
+          "organizations",
+          "rbac",
+          "permissions",
+          "functions",
+          "edge"
+        ],
+        "category": "Auth",
+        "dependencies": {
+          "required": [
+            "multi-tenant-rbac",
+            "functions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "observability-logs",
+      "type": "registry:item",
+      "title": "App Logs",
+      "description": "Structured application logs table for debugging and audits",
+      "categories": [
+        "Observability"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/observability-logs/supabase/schemas/observability.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/observability.sql"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "logs",
+          "observability",
+          "debugging"
+        ],
+        "category": "Observability",
+        "dependencies": {
+          "required": [
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "presence-rooms",
+      "type": "registry:item",
+      "title": "Presence Rooms",
+      "description": "Durable rooms, memberships, last-seen state, and RLS to complement Supabase Realtime Presence",
+      "categories": [
+        "Realtime"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database",
+        "SaxonF/templates/auth"
+      ],
+      "files": [
+        {
+          "path": "templates/presence-rooms/supabase/schemas/presence-rooms.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/presence-rooms.sql"
+        }
+      ],
+      "docs": "# Presence rooms template\n\nComplements Supabase Realtime Presence with durable room and membership data. Supabase Presence remains the source of truth for ephemeral online state; these tables answer durable questions like who can join a room, who was last seen, and which rooms exist.\n\n## How it works\n\n1. Create a room in `public.presence_rooms`.\n2. Add members to `public.presence_room_members`.\n3. Clients subscribe to a Realtime channel such as `presence-room:<room_id>` and use native Presence `track()` / `untrack()`.\n4. Clients can periodically call `public.touch_presence_room(...)` to persist last-seen state for server rendering, reconnects, or audit views.\n5. A cleanup helper marks expired heartbeat rows offline.\n\n## Includes\n\n- `supabase/schemas/presence-rooms.sql` - rooms, memberships, heartbeat table, RLS, cleanup helper, and Realtime publication\n\n## Notes\n\nThis template does not reimplement Supabase Realtime Presence. Use the Realtime client for live `sync`, `join`, and `leave` events, and use these tables for authorization and durable state.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "realtime",
+          "presence",
+          "rooms",
+          "collaboration",
+          "auth",
+          "rls"
+        ],
+        "category": "Realtime",
+        "dependencies": {
+          "required": [
+            "database",
+            "auth"
+          ]
+        }
+      }
+    },
+    {
+      "name": "queues",
+      "type": "registry:item",
+      "title": "Queues (pgmq)",
+      "description": "pgmq extension with a default job queue for background processing",
+      "categories": [
+        "Database"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/queues/supabase/schemas/queues.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/queues.sql"
+        }
+      ],
+      "docs": "# Queues template\n\nBackground job queues using Supabase Queues with worker-friendly schema and policies.\n\n## Includes\n\n- Queue tables and enqueue helpers\n- RLS for secure job submission\n\n## Dependencies\n\nRequires **database** and **functions**.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "queues",
+          "pgmq",
+          "background-jobs"
+        ],
+        "category": "Database",
+        "dependencies": {
+          "required": [
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "realtime-comments",
+      "type": "registry:item",
+      "title": "Realtime Comments",
+      "description": "Comments table configured for realtime collaborative feeds",
+      "categories": [
+        "Realtime"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/realtime-comments/supabase/schemas/realtime.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/realtime.sql"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "realtime",
+          "comments",
+          "collaboration"
+        ],
+        "category": "Realtime",
+        "dependencies": {
+          "required": [
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "security-rls",
+      "type": "registry:item",
+      "title": "Auto-enable RLS",
+      "description": "Event trigger that automatically enables Row Level Security on new public tables",
+      "categories": [
+        "Security"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/security-rls/supabase/schemas/security.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/security.sql"
+        }
+      ],
+      "docs": "# Security RLS template\n\nBaseline row level security patterns for common Supabase tables and auth-aware policies.\n\n## Includes\n\n- Example secured tables\n- Reusable RLS policy templates\n\n## Dependencies\n\nRequires **database** and **auth**.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "security",
+          "rls",
+          "event-trigger"
+        ],
+        "category": "Security",
+        "dependencies": {
+          "required": [
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "storage",
+      "type": "registry:item",
+      "title": "Storage",
+      "description": "S3-compatible object storage for files",
+      "categories": [
+        "Core"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/database"
+      ],
+      "files": [
+        {
+          "path": "templates/storage/supabase/config.toml",
+          "type": "registry:file",
+          "target": "~/supabase/config.toml"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "storage",
+          "files",
+          "s3"
+        ],
+        "category": "Core",
+        "dependencies": {
+          "required": [
+            "database"
+          ]
+        }
+      }
+    },
+    {
+      "name": "storage-avatars",
+      "type": "registry:item",
+      "title": "Avatar Uploads",
+      "description": "Public avatar bucket with user-owned upload policies",
+      "categories": [
+        "Storage"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/storage",
+        "SaxonF/templates/auth"
+      ],
+      "files": [
+        {
+          "path": "templates/storage-avatars/supabase/schemas/storage.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/storage.sql"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "storage",
+          "avatars",
+          "images"
+        ],
+        "category": "Storage",
+        "dependencies": {
+          "required": [
+            "storage",
+            "auth"
+          ],
+          "optional": [
+            "auth-email"
+          ]
+        }
+      }
+    },
+    {
+      "name": "storage-image-blurhash",
+      "type": "registry:item",
+      "title": "Image Blurhash",
+      "description": "Compute blurhash placeholders for uploaded images via storage trigger and an Edge Function",
+      "categories": [
+        "Storage"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/storage",
+        "SaxonF/templates/database",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/storage-image-blurhash/supabase/functions/image-blurhash/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/image-blurhash/index.ts"
+        },
+        {
+          "path": "templates/storage-image-blurhash/supabase/schemas/image-blurhash.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/image-blurhash.sql"
+        },
+        {
+          "path": "templates/storage-image-blurhash/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
+        }
+      ],
+      "docs": "# Image blurhash template\n\nComputes a [blurhash](https://blurha.sh) string for every image uploaded to the `images` bucket and stores it in `public.image_blurhashes`. Use the hash as a lightweight placeholder while the full image loads on the client.\n\n## How it works\n\n1. A user uploads an image to the `images` bucket.\n2. A trigger on `storage.objects` inserts a row in `public.image_blurhashes` and invokes the `image-blurhash` Edge Function via `pg_net`.\n3. The function downloads the image, decodes it, computes the blurhash, and updates the row.\n\n## Includes\n\n- `supabase/schemas/image-blurhash.sql` — bucket, tracking table, RLS, and trigger\n- `supabase/functions/image-blurhash/index.ts` — decode and hash worker\n- `supabase/seed.sql` — local `project_url` secret used by `pg_net`\n\n## Dependencies\n\nRequires **storage**, **database**, and **functions**.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "storage",
+          "images",
+          "blurhash",
+          "media",
+          "triggers",
+          "functions"
+        ],
+        "category": "Storage",
+        "dependencies": {
+          "required": [
+            "storage",
+            "database",
+            "functions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "storage-image-colors",
+      "type": "registry:item",
+      "title": "Image Color Extraction",
+      "description": "Extract primary and secondary vibrant colors from uploaded images via storage trigger and an Edge Function",
+      "categories": [
+        "Storage"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/storage",
+        "SaxonF/templates/database",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/storage-image-colors/supabase/functions/image-colors/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/image-colors/index.ts"
+        },
+        {
+          "path": "templates/storage-image-colors/supabase/schemas/image-colors.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/image-colors.sql"
+        },
+        {
+          "path": "templates/storage-image-colors/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
+        }
+      ],
+      "docs": "# Image color extraction template\n\nExtracts a dominant color palette from every image uploaded to the `images` bucket. The primary and secondary colors are stored in `public.image_colors` so the client can tint UI (placeholders, gradients, hero backgrounds) without shipping the full image first.\n\n## How it works\n\n1. A user uploads an image to the `images` bucket.\n2. A trigger on `storage.objects` inserts a row in `public.image_colors` and invokes the `image-colors` Edge Function via `pg_net`.\n3. The function downloads the image, runs a simple color quantization, and updates the row with the top colors and a JSON palette.\n\nThe implementation uses median-cut quantization to stay dependency-light and Edge Runtime friendly. Swap it for `node-vibrant` or any other algorithm if you need more nuanced palettes.\n\n## Includes\n\n- `supabase/schemas/image-colors.sql` — bucket, tracking table, RLS, and trigger\n- `supabase/functions/image-colors/index.ts` — palette extraction worker\n- `supabase/seed.sql` — local `project_url` secret used by `pg_net`\n\n## Dependencies\n\nRequires **storage**, **database**, and **functions**. Pairs well with **storage-image-blurhash** for low-bandwidth image placeholders.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "storage",
+          "images",
+          "colors",
+          "palette",
+          "media",
+          "triggers",
+          "functions"
+        ],
+        "category": "Storage",
+        "dependencies": {
+          "required": [
+            "storage",
+            "database",
+            "functions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "storage-pdf-thumbnails",
+      "type": "registry:item",
+      "title": "PDF Thumbnails",
+      "description": "Generate thumbnail images for uploaded PDFs via storage trigger and an Edge Function",
+      "categories": [
+        "Storage"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/storage",
+        "SaxonF/templates/database",
+        "SaxonF/templates/functions"
+      ],
+      "files": [
+        {
+          "path": "templates/storage-pdf-thumbnails/supabase/functions/pdf-thumbnail/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/pdf-thumbnail/index.ts"
+        },
+        {
+          "path": "templates/storage-pdf-thumbnails/supabase/schemas/pdf-thumbnails.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/pdf-thumbnails.sql"
+        },
+        {
+          "path": "templates/storage-pdf-thumbnails/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
+        }
+      ],
+      "docs": "# PDF thumbnails template\n\nGenerates a preview image of the first page of every PDF uploaded to the `pdfs` bucket and stores it in the public `pdf-thumbnails` bucket. A row in `public.pdf_thumbnails` tracks status so clients can poll or subscribe over Realtime.\n\n## How it works\n\n1. A user uploads a PDF to the `pdfs` bucket.\n2. A trigger on `storage.objects` inserts a row in `public.pdf_thumbnails` and invokes the `pdf-thumbnail` Edge Function via `pg_net`.\n3. The function downloads the PDF, renders the first page to PNG, and uploads it to `pdf-thumbnails/<object_id>.png`.\n4. The tracking row is updated to `ready` (or `failed` with an error message).\n\n## Includes\n\n- `supabase/schemas/pdf-thumbnails.sql` — buckets, tracking table, RLS, and trigger\n- `supabase/functions/pdf-thumbnail/index.ts` — render-and-upload worker\n- `supabase/seed.sql` — local `project_url` secret used by `pg_net`\n\n## Configuration\n\nThe Edge Function uses `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` which are injected automatically in hosted projects. For local development, run `supabase functions serve pdf-thumbnail --no-verify-jwt` and set the `project_url` secret in `seed.sql` to your local Functions URL.\n\n## Dependencies\n\nRequires **storage**, **database**, and **functions**.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "storage",
+          "pdf",
+          "thumbnails",
+          "media",
+          "triggers",
+          "functions"
+        ],
+        "category": "Storage",
+        "dependencies": {
+          "required": [
+            "storage",
+            "database",
+            "functions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "todos",
+      "type": "registry:item",
+      "title": "Todos",
+      "description": "Starter todos table with owner-scoped row level security",
+      "categories": [
+        "Database"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/auth"
+      ],
+      "files": [
+        {
+          "path": "templates/todos/supabase/schemas/todos.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/todos.sql"
+        }
+      ],
+      "meta": {
+        "version": "1.0.0",
+        "defaultEnabled": true,
+        "tags": [
+          "todos",
+          "starter",
+          "schema"
+        ],
+        "category": "Database",
+        "dependencies": {
+          "required": [
+            "auth"
+          ]
+        }
+      }
+    }
   ]
 }

@@ -39,11 +39,13 @@ npx shadcn@latest add SaxonF/templates/auth --dry-run
 
 This repository follows the [GitHub registry model](https://ui.shadcn.com/docs/registry/github):
 
-- A root [`registry.json`](./registry.json) declares the catalog and `include` paths to per-template manifests.
-- Each template lives in `templates/<id>/` with its own `registry.json`, source files, and optional `readme.md`.
-- The shadcn CLI reads those manifests from GitHub and installs the referenced files into the user's project.
+- A single root [`registry.json`](./registry.json) declares every template in its `items` array.
+- Template source files live under `templates/<id>/supabase/`.
+- The shadcn CLI reads the manifest from GitHub and installs the referenced files into the user's project.
 
-No registry server or published JSON artifacts are required — the GitHub repository is the source of truth.
+No registry server or per-template manifest files are required — the GitHub repository is the source of truth.
+
+The `include` pattern in the docs is optional. It is useful for very large repos that want to split manifests across folders. This catalog uses one root `registry.json` instead.
 
 ### Dependencies
 
@@ -57,25 +59,24 @@ shadcn resolves and installs required dependencies from the same registry when n
 
 ### What gets installed
 
-Each template ships files from `templates/<id>/supabase/` into matching paths in your project (e.g. `~/supabase/schemas/*.sql`, `~/supabase/functions/*/index.ts`, `~/supabase/config.toml`).
+Each item references files from `templates/<id>/supabase/` in the repository. Those files are installed into matching paths in your project (e.g. `~/supabase/schemas/*.sql`, `~/supabase/functions/*/index.ts`, `~/supabase/config.toml`).
 
 ## Repository layout
 
 ```txt
 .
-├── registry.json                 # Root catalog (includes per-template manifests)
+├── registry.json                 # Root catalog (all items)
 ├── templates/
 │   └── <id>/
-│       ├── registry.json         # shadcn registry item (generated)
 │       ├── readme.md             # Optional docs (included in registry item)
-│       ├── template.json         # Optional source metadata (preferred for edits)
+│       ├── template.json         # Optional metadata source (preferred for edits)
 │       └── supabase/             # Template source files
 │           ├── config.toml
 │           ├── schemas/
 │           ├── functions/
 │           └── seed.sql
 └── scripts/
-    └── sync-registry.ts          # Regenerates registry.json files
+    └── sync-registry.ts          # Regenerates root registry.json
 ```
 
 ## Contributing
@@ -87,21 +88,21 @@ Each template ships files from `templates/<id>/supabase/` into matching paths in
 
 ### Sync the registry
 
-After changing template files or metadata, regenerate all `registry.json` manifests:
+After changing template files or metadata, regenerate the root manifest:
 
 ```bash
 pnpm install
 pnpm sync-registry
 ```
 
-`sync-registry` scans each `templates/<id>/supabase/` directory, updates that template's `registry.json`, and refreshes the root `registry.json` `include` list.
+`sync-registry` scans each `templates/<id>/supabase/` directory and rewrites the `items` array in root `registry.json`.
 
 ### Template metadata
 
 Metadata can live in either:
 
 1. **`template.json`** (preferred when adding or editing a template) — used as the source of truth on sync.
-2. **Existing `registry.json`** — read on sync if `template.json` is absent.
+2. **The existing item in root `registry.json`** — read on sync if `template.json` is absent.
 
 `template.json` shape:
 
