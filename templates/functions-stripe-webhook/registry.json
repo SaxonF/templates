@@ -8,8 +8,8 @@
     "Ecommerce"
   ],
   "registryDependencies": [
-    "supabase/templates/functions",
-    "supabase/templates/database"
+    "SaxonF/templates/functions",
+    "SaxonF/templates/database"
   ],
   "files": [
     {

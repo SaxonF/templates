@@ -8,9 +8,9 @@
     "Storage"
   ],
   "registryDependencies": [
-    "supabase/templates/storage",
-    "supabase/templates/database",
-    "supabase/templates/functions"
+    "SaxonF/templates/storage",
+    "SaxonF/templates/database",
+    "SaxonF/templates/functions"
   ],
   "files": [
     {

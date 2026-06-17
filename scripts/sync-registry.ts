@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 const REGISTRY_SCHEMA = 'https://ui.shadcn.com/schema/registry.json'
 const REGISTRY_ITEM_SCHEMA = 'https://ui.shadcn.com/schema/registry-item.json'
 const REGISTRY_NAME = 'supabase-templates'
-const REGISTRY_HOMEPAGE = 'https://github.com/supabase/templates'
-const REGISTRY_GITHUB_SLUG = 'supabase/templates'
+const REGISTRY_HOMEPAGE = 'https://github.com/SaxonF/templates'
+const REGISTRY_GITHUB_SLUG = 'SaxonF/templates'
 
 interface TemplateAuthor {
   name: string

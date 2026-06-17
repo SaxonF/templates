@@ -8,10 +8,10 @@
     "AI"
   ],
   "registryDependencies": [
-    "supabase/templates/database",
-    "supabase/templates/storage",
-    "supabase/templates/functions",
-    "supabase/templates/ai-rag-pipeline"
+    "SaxonF/templates/database",
+    "SaxonF/templates/storage",
+    "SaxonF/templates/functions",
+    "SaxonF/templates/ai-rag-pipeline"
   ],
   "files": [
     {

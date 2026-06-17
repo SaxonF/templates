@@ -8,8 +8,8 @@
     "Realtime"
   ],
   "registryDependencies": [
-    "supabase/templates/database",
-    "supabase/templates/auth"
+    "SaxonF/templates/database",
+    "SaxonF/templates/auth"
   ],
   "files": [
     {

@@ -8,7 +8,7 @@
     "Database"
   ],
   "registryDependencies": [
-    "supabase/templates/database"
+    "SaxonF/templates/database"
   ],
   "files": [
     {

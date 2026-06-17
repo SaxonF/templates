@@ -8,9 +8,9 @@
     "AI"
   ],
   "registryDependencies": [
-    "supabase/templates/database",
-    "supabase/templates/functions",
-    "supabase/templates/ai-vector-search"
+    "SaxonF/templates/database",
+    "SaxonF/templates/functions",
+    "SaxonF/templates/ai-vector-search"
   ],
   "files": [
     {

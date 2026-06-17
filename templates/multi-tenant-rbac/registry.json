@@ -8,8 +8,8 @@
     "Auth"
   ],
   "registryDependencies": [
-    "supabase/templates/auth",
-    "supabase/templates/database"
+    "SaxonF/templates/auth",
+    "SaxonF/templates/database"
   ],
   "files": [
     {

@@ -8,8 +8,8 @@
     "AI"
   ],
   "registryDependencies": [
-    "supabase/templates/database",
-    "supabase/templates/api"
+    "SaxonF/templates/database",
+    "SaxonF/templates/api"
   ],
   "files": [
     {

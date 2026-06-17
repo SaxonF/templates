@@ -8,8 +8,8 @@
     "Integrations"
   ],
   "registryDependencies": [
-    "supabase/templates/database",
-    "supabase/templates/functions"
+    "SaxonF/templates/database",
+    "SaxonF/templates/functions"
   ],
   "files": [
     {

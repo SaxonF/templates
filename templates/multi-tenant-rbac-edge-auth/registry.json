@@ -8,8 +8,8 @@
     "Auth"
   ],
   "registryDependencies": [
-    "supabase/templates/multi-tenant-rbac",
-    "supabase/templates/functions"
+    "SaxonF/templates/multi-tenant-rbac",
+    "SaxonF/templates/functions"
   ],
   "files": [
     {
