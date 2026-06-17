@@ -8,7 +8,10 @@ export type JsonSchema = {
 }
 
 export type ToolContext = {
+  /** Service-role client. Bypasses RLS — use only for admin or schema introspection. */
   supabase: SupabaseClient
+  /** User-scoped client from the request Authorization header. Use for RLS-protected tables. */
+  userSupabase: SupabaseClient | null
   request: Request
 }
 

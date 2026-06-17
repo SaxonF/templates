@@ -14,3 +14,5 @@ using (auth.uid() = id);
 create policy "Users can update their own profile"
 on public.profiles for update
 using (auth.uid() = id);
+
+grant select, insert, update, delete on table public.profiles to authenticated;

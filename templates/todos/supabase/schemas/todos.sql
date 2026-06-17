@@ -28,3 +28,6 @@ create policy "Users can delete their own todos"
 on public.todos for delete
 to authenticated
 using ((select auth.uid()) = user_id);
+
+grant select, insert, update, delete on table public.todos to authenticated;
+grant usage, select on all sequences in schema public to authenticated;

@@ -56,9 +56,34 @@ The seed file grants these permissions:
 
 Adjust `supabase/seed.sql` before production if your app needs a stricter default. For example, remove `projects.create` or `projects.update` from `member` for read-only members.
 
-## Writing RLS policies
+When you install multiple templates, merge their `seed.sql` files manually — the shadcn installer overwrites `supabase/seed.sql` on each add. Keep the `role_permissions` inserts from this template.
 
-For tenant-owned tables, add an `organization_id` column and enable RLS:
+## Database setup
+
+Declarative schemas under `supabase/schemas/` are not applied until a migration exists. On a fresh project:
+
+1. Start with an empty or comment-only `seed.sql` if needed.
+2. Run `supabase db diff -f initial_schema`.
+3. Restore `seed.sql` (including the default `role_permissions` rows below), then `supabase db reset`.
+
+See the **database** template readme for details.
+
+## Adding permissions
+
+Define new values on the `app_permission` enum in `authorization.sql` before using them in policies or seed data:
+
+```sql
+create type public.app_permission as enum (
+  'organizations.read',
+  -- ...
+  'documents.read',
+  'documents.create'
+);
+```
+
+Do not `ALTER TYPE ... ADD VALUE` and reference the new value in the same schema file or migration — PostgreSQL requires enum additions to be committed before use. Add enum values in one migration, then add policies and `role_permissions` rows in a follow-up diff.
+
+For tenant-owned tables, add permissions to the enum definition (not `ALTER TYPE` in a downstream file), then add the table:
 
 ```sql
 create table public.documents (
@@ -75,14 +100,9 @@ on public.documents (organization_id);
 alter table public.documents enable row level security;
 ```
 
-Add permissions for the new resource:
+Seed `role_permissions` for the new resource:
 
 ```sql
-alter type public.app_permission add value 'documents.read';
-alter type public.app_permission add value 'documents.create';
-alter type public.app_permission add value 'documents.update';
-alter type public.app_permission add value 'documents.delete';
-
 insert into public.role_permissions (role, permission)
 values
   ('owner', 'documents.read'),
@@ -142,17 +162,13 @@ Write access for admins and owners only:
 with check ((select public.authorize(organization_id, 'documents.create')))
 ```
 
-Owner-only access can be modeled as a permission that only `owner` receives:
+Owner-only access can be modeled as a permission that only `owner` receives. Add `billing.manage` to the `app_permission` enum in `authorization.sql`, then seed and policy:
 
 ```sql
-alter type public.app_permission add value 'billing.manage';
-
 insert into public.role_permissions (role, permission)
 values ('owner', 'billing.manage')
 on conflict do nothing;
 ```
-
-Then use it in a policy:
 
 ```sql
 using ((select public.authorize(organization_id, 'billing.manage')))

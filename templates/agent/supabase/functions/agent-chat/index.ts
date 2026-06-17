@@ -2,10 +2,10 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 
 import { openai } from 'npm:@ai-sdk/openai'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { streamText, stepCountIs, tool, type CoreMessage, type ToolSet } from 'npm:ai'
+import { jsonSchema, streamText, stepCountIs, tool, type CoreMessage, type ToolSet } from 'npm:ai'
 import { z } from 'npm:zod@3'
 
-const DEFAULT_MODEL = 'gpt-4.1-mini'
+const DEFAULT_MODEL = 'gpt-4o-mini'
 const DEFAULT_SYSTEM_PROMPT =
   'You are a helpful assistant. Use available tools when they are relevant, and cite tool results clearly.'
 const MAX_HISTORY_MESSAGES = 24
@@ -110,9 +110,17 @@ Deno.serve(async (req) => {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const delta of result.textStream) {
-          assistantText += delta
-          controller.enqueue(encoder.encode(delta))
+        for await (const part of result.fullStream) {
+          if (part.type === 'text-delta') {
+            assistantText += part.text
+            controller.enqueue(encoder.encode(part.text))
+          } else if (part.type === 'error') {
+            const message = part.error instanceof Error ? part.error.message : String(part.error)
+            console.error('agent stream error:', message)
+            const errorText = `\n\nError: ${message}`
+            assistantText += errorText
+            controller.enqueue(encoder.encode(errorText))
+          }
         }
 
         await serviceClient.from('agent_memories').insert({
@@ -124,7 +132,10 @@ Deno.serve(async (req) => {
 
         controller.close()
       } catch (error) {
-        controller.error(error)
+        const message = error instanceof Error ? error.message : String(error)
+        console.error('agent stream failed:', message)
+        controller.enqueue(encoder.encode(`\n\nError: ${message}`))
+        controller.close()
       }
     },
   })
@@ -240,12 +251,14 @@ async function buildMcpTools(servers: AgentMcpServer[]): Promise<ToolSet> {
             name,
             tool({
               description: `[${server.name}] ${mcpTool.description ?? mcpTool.name}`,
-              inputSchema: (mcpTool.inputSchema ?? { type: 'object', properties: {} }) as never,
+              inputSchema: jsonSchema(mcpTool.inputSchema ?? { type: 'object', properties: {} }),
+              strict: false,
               execute: async (args) => callMcpTool(server, mcpTool.name, args),
             }),
           ] as const
         })
-      } catch {
+      } catch (error) {
+        console.error(`failed to load MCP tools from ${server.name}:`, error)
         return []
       }
     })

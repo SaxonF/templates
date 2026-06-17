@@ -215,3 +215,9 @@ on public.projects
 for delete
 to authenticated
 using ((select public.authorize(organization_id, 'projects.delete')));
+
+grant select, insert, update, delete on table public.organizations to authenticated;
+grant select, insert, update, delete on table public.organization_members to authenticated;
+grant select on table public.role_permissions to authenticated;
+grant select, insert, update, delete on table public.projects to authenticated;
+grant usage, select on all sequences in schema public to authenticated;

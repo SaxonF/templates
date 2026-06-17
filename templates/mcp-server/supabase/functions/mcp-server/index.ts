@@ -1,8 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 
-import { createClient } from 'jsr:@supabase/supabase-js@2'
-
 import { getTool, listTools } from './registry.ts'
+import { createServiceClient, createUserClient } from './user-client.ts'
 
 import './tools/index.ts'
 
@@ -44,10 +43,8 @@ Deno.serve(async (req) => {
     return rpcError(null, -32700, 'parse error')
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+  const supabase = createServiceClient()
+  const userSupabase = createUserClient(req)
 
   switch (body.method) {
     case 'initialize':
@@ -76,7 +73,7 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const result = await tool.handler(args, { supabase, request: req })
+        const result = await tool.handler(args, { supabase, userSupabase, request: req })
         return rpcResult(body.id, {
           content: [{ type: 'text', text: JSON.stringify(result) }],
         })

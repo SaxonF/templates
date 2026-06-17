@@ -17,7 +17,7 @@ Each session belongs to a user. `agent-chat` creates a session when `sessionId` 
 
 ### Memory and recall
 
-Memory rows can store arbitrary JSON payloads. When combined with **ai-vector-search** or **ai-automatic-embeddings**, embeddings enable similarity search over past context before the model runs.
+Memory rows can store arbitrary JSON payloads. Add the **ai-vector-search** or **ai-automatic-embeddings** template for embedding columns, HNSW indexes, and similarity search helpers. The base agent schema intentionally omits pgvector objects so `supabase db diff` works reliably on fresh projects.
 
 ### MCP tools
 
@@ -76,9 +76,21 @@ Tool names are namespaced as `<server>_<tool>`, so a `list_tables` tool from the
 ## Getting started
 
 1. Add this template (and its required dependencies) to your composition.
-2. Run `supabase db reset` or apply migrations locally to create agent tables.
-3. Set model provider secrets, for example `supabase secrets set OPENAI_API_KEY=...`.
+2. Generate an initial migration before seeding — see the **database** template readme (`supabase db diff -f initial_schema`, then `supabase db reset`).
+3. Configure model provider secrets:
+   - **Local:** copy `supabase/functions/.env.example` to `supabase/functions/.env` (auto-loaded by `supabase start`). Restart with `supabase stop && supabase start` after changes.
+   - **Hosted:** `supabase secrets set OPENAI_API_KEY=...` and optionally `OPENAI_MODEL=gpt-4o-mini`.
 4. Deploy Edge Functions: `supabase functions deploy agent-chat`.
 5. From your app, POST `{ message, sessionId? }` to `agent-chat` and read the streamed text response.
 
 For production, review RLS policies in `agent.sql`, restrict service-role usage to server-side agent loops, and avoid storing long-lived third-party MCP secrets directly in `agent_mcp_servers.headers`.
+
+## MCP tool schemas
+
+MCP tools expose JSON Schema. The AI SDK expects Zod or a `jsonSchema()` wrapper — `agent-chat` wraps MCP `inputSchema` values automatically with `strict: false`. If you fork the function, keep that wrapper or tool calls will fail with `schema is not a function`.
+
+## Debugging
+
+- Run `supabase functions serve agent-chat --no-verify-jwt` and watch the terminal for MCP load errors and model failures.
+- `agent-chat` streams error text to the client on model or tool failures instead of returning an empty 200 response.
+- MCP server load failures are logged server-side; check that `${SUPABASE_URL}/functions/v1/mcp-server` is reachable and the user's JWT is forwarded in the `Authorization` header.

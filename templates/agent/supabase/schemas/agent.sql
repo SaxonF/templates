@@ -1,7 +1,5 @@
 -- Persistent sessions, memory, and MCP server configuration for streaming AI agents.
--- Pair with ai-vector-search or ai-automatic-embeddings for embedding generation.
-
-create extension if not exists vector with schema extensions;
+-- Pair with ai-vector-search or ai-automatic-embeddings for embedding generation and recall.
 
 create table if not exists public.agent_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -20,7 +18,6 @@ create table if not exists public.agent_memories (
   role text not null check (role in ('user', 'assistant', 'system', 'tool')),
   content text,
   state jsonb not null default '{}',
-  embedding extensions.halfvec(1536),
   created_at timestamptz default now()
 );
 
@@ -40,10 +37,6 @@ create table if not exists public.agent_mcp_servers (
 comment on table public.agent_mcp_servers is 'MCP servers whose tools can be exposed to the streaming agent endpoint. Avoid storing long-lived secrets in headers.';
 
 create index if not exists agent_memories_session_id_idx on public.agent_memories (session_id);
-
-create index if not exists agent_memories_embedding_idx
-on public.agent_memories
-using hnsw (embedding extensions.halfvec_cosine_ops);
 
 alter table public.agent_sessions enable row level security;
 alter table public.agent_memories enable row level security;
@@ -105,38 +98,7 @@ for select
 to authenticated
 using (enabled = true);
 
-create or replace function public.match_agent_memories(
-  session_id uuid,
-  query_embedding extensions.halfvec(1536),
-  match_count int default 8
-)
-returns table (
-  id uuid,
-  role text,
-  content text,
-  state jsonb,
-  similarity float
-)
-language sql
-stable
-security invoker
-set search_path = ''
-as $$
-  select
-    agent_memories.id,
-    agent_memories.role,
-    agent_memories.content,
-    agent_memories.state,
-    1 - (agent_memories.embedding <=> query_embedding) as similarity
-  from public.agent_memories
-  where agent_memories.session_id = match_agent_memories.session_id
-    and agent_memories.embedding is not null
-    and exists (
-      select 1
-      from public.agent_sessions
-      where agent_sessions.id = agent_memories.session_id
-        and agent_sessions.user_id = auth.uid()
-    )
-  order by agent_memories.embedding <=> query_embedding
-  limit least(match_count, 50);
-$$;
+grant select, insert, update, delete on table public.agent_sessions to authenticated;
+grant select, insert, update, delete on table public.agent_memories to authenticated;
+grant select on table public.agent_mcp_servers to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
