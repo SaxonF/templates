@@ -102,3 +102,9 @@ grant select, insert, update, delete on table public.agent_sessions to authentic
 grant select, insert, update, delete on table public.agent_memories to authenticated;
 grant select on table public.agent_mcp_servers to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
+
+-- agent-chat persists sessions and messages with the service role (bypasses RLS after verifying the user JWT).
+grant select, insert, update, delete on table public.agent_sessions to service_role;
+grant select, insert, update, delete on table public.agent_memories to service_role;
+grant select on table public.agent_mcp_servers to service_role;
+grant usage, select on all sequences in schema public to service_role;

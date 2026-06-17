@@ -13,7 +13,7 @@ The agent can call tools from connected MCP servers. If you also add the **mcp-s
 
 ### Sessions and messages
 
-Each session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response.
+Each session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response. The function verifies the caller's JWT, then writes sessions and messages with the service role — grant `service_role` table access in `agent.sql` so those inserts succeed.
 
 ### Memory and recall
 
