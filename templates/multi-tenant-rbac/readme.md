@@ -26,6 +26,8 @@ That helper returns `true` only when the signed-in user is a member of the row's
 
 ## Getting started
 
+If you expose tenant data through the **mcp-server** template, add a `list_organizations` discovery tool so MCP clients can resolve organization context without the user pasting UUIDs. See the mcp-server readme section **Multi-tenant apps**.
+
 Create an organization from your app after the user signs in:
 
 ```sql
