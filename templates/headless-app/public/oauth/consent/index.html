@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Authorize MCP client</title>
+    <link rel="stylesheet" href="../../assets/styles.css" />
+  </head>
+  <body class="authenticated-body">
+    <main>
+      <section>
+        <nav id="auth-nav" class="site-nav" aria-label="Account" hidden>
+          <span id="user-email" class="site-nav-email"></span>
+          <div class="site-nav-links">
+            <a href="/clients/">Clients</a>
+            <a href="/setup/">Connect MCP</a>
+            <button id="sign-out-button" type="button">Sign out</button>
+          </div>
+        </nav>
+
+        <h1 id="title">Authorize client</h1>
+
+        <div id="consent-content" hidden>
+          <div class="details">
+            <p><strong>Client:</strong> <span id="client-name"></span></p>
+            <p><strong>Redirect:</strong> <code id="redirect-uri"></code></p>
+            <div id="scopes-section" hidden>
+              <strong>Scopes</strong>
+              <ul id="scope-list"></ul>
+            </div>
+          </div>
+
+          <div class="permission-note">
+            <p>
+              This client can read permitted database rows and invoke project Edge Functions.
+              Existing database and function permissions still apply.
+            </p>
+          </div>
+
+          <div class="actions">
+            <button id="approve-button" type="button">Allow access</button>
+            <button id="deny-button" class="secondary" type="button">Deny</button>
+          </div>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite">Loading request…</p>
+      </section>
+    </main>
+
+    <script type="module">
+      import {
+        configError,
+        getClient,
+        mountAccountNav,
+        requireUser,
+        setStatus,
+      } from '../../assets/app.js'
+
+      const status = document.querySelector('#status')
+      const content = document.querySelector('#consent-content')
+      const approveButton = document.querySelector('#approve-button')
+      const denyButton = document.querySelector('#deny-button')
+
+      async function main() {
+        if (configError) {
+          setStatus(status, configError, true)
+          return
+        }
+
+        const authorizationId = new URLSearchParams(location.search).get('authorization_id')
+        if (!authorizationId) {
+          setStatus(status, 'Missing authorization_id.', true)
+          return
+        }
+
+        const supabase = getClient()
+        const user = await requireUser(supabase)
+        if (!user) return // a redirect to sign-in is already in flight
+        mountAccountNav(supabase, user)
+
+        const { data: details, error } =
+          await supabase.auth.oauth.getAuthorizationDetails(authorizationId)
+
+        if (error || !details) {
+          setStatus(status, error?.message ?? 'Invalid authorization request.', true)
+          return
+        }
+
+        // No authorization_id back means the user already consented for this
+        // client; finish the flow without prompting again.
+        if (!('authorization_id' in details) && details.redirect_url) {
+          location.replace(details.redirect_url)
+          return
+        }
+
+        renderConsent(details)
+        approveButton.addEventListener('click', () => decide(supabase, authorizationId, true))
+        denyButton.addEventListener('click', () => decide(supabase, authorizationId, false))
+      }
+
+      function renderConsent(details) {
+        document.querySelector('#title').textContent =
+          `Authorize ${details.client?.name || 'MCP client'}`
+        document.querySelector('#client-name').textContent =
+          details.client?.name || details.client?.id || 'Unknown client'
+        document.querySelector('#redirect-uri').textContent = details.redirect_uri || 'Not provided'
+
+        const scopes = String(details.scope ?? '')
+          .split(' ')
+          .map((scope) => scope.trim())
+          .filter(Boolean)
+
+        if (scopes.length) {
+          const scopeList = document.querySelector('#scope-list')
+          for (const scope of scopes) {
+            const item = document.createElement('li')
+            item.textContent = scope
+            scopeList.append(item)
+          }
+          document.querySelector('#scopes-section').hidden = false
+        }
+
+        content.hidden = false
+        setStatus(status, '')
+      }
+
+      async function decide(supabase, authorizationId, approved) {
+        approveButton.disabled = true
+        denyButton.disabled = true
+        setStatus(status, approved ? 'Approving…' : 'Denying…')
+
+        const operation = approved
+          ? supabase.auth.oauth.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
+          : supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true })
+        const { data, error } = await operation
+
+        if (error || !data?.redirect_url) {
+          setStatus(status, error?.message ?? 'Unable to complete authorization.', true)
+          approveButton.disabled = false
+          denyButton.disabled = false
+          return
+        }
+
+        location.assign(data.redirect_url)
+      }
+
+      main()
+    </script>
+  </body>
+</html>

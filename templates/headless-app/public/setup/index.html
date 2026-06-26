@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connect your MCP client</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+  </head>
+  <body class="setup-body authenticated-body">
+    <main>
+      <section id="setup-content" hidden>
+        <nav class="site-nav" aria-label="Account">
+          <span id="user-email" class="site-nav-email"></span>
+          <div class="site-nav-links">
+            <a href="/clients/">Clients</a>
+            <a href="/setup/" aria-current="page">Connect MCP</a>
+            <button id="sign-out-button" type="button">Sign out</button>
+          </div>
+        </nav>
+
+        <header class="page-header">
+          <h1>Connect your MCP client</h1>
+        </header>
+
+        <div class="server-url">
+          <strong>Server URL</strong>
+          <code id="server-url"></code>
+        </div>
+
+        <div class="client-list">
+          <article class="client-card">
+            <h2>Codex</h2>
+            <div class="code-block">
+              <pre><code id="codex-command"></code></pre>
+              <button class="copy-button" type="button" data-copy="codex-command">Copy</button>
+            </div>
+            <ol>
+              <li>Run both commands.</li>
+              <li>Complete sign-in in the browser.</li>
+              <li>Start a new session and run <code>/mcp</code>.</li>
+            </ol>
+          </article>
+
+          <article class="client-card">
+            <h2>ChatGPT</h2>
+            <div class="code-block">
+              <pre><code id="chatgpt-url"></code></pre>
+              <button class="copy-button" type="button" data-copy="chatgpt-url">Copy</button>
+            </div>
+            <ol>
+              <li>In ChatGPT, go to <strong>Settings → Connectors</strong>.</li>
+              <li>Use the configured connector name and description, then paste the HTTPS MCP server URL.</li>
+              <li>Start a new chat, choose the connector from the composer tool menu, and complete sign-in.</li>
+            </ol>
+          </article>
+
+          <article class="client-card">
+            <h2>Claude Code</h2>
+            <div class="code-block">
+              <pre><code id="claude-command"></code></pre>
+              <button class="copy-button" type="button" data-copy="claude-command">Copy</button>
+            </div>
+            <ol>
+              <li>Run the command.</li>
+              <li>Run <code>/mcp</code> in Claude Code.</li>
+              <li>Select the server and complete sign-in.</li>
+            </ol>
+          </article>
+
+          <article class="client-card">
+            <h2>Cursor</h2>
+            <p class="muted">
+              Add to <code>~/.cursor/mcp.json</code> or <code>.cursor/mcp.json</code>.
+            </p>
+            <div class="code-block">
+              <pre><code id="cursor-config"></code></pre>
+              <button class="copy-button" type="button" data-copy="cursor-config">Copy</button>
+            </div>
+            <ol>
+              <li>Save the file.</li>
+              <li>Enable the configured server in MCP settings.</li>
+              <li>Complete sign-in in the browser.</li>
+            </ol>
+          </article>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <script type="module">
+      import {
+        configError,
+        getClient,
+        MCP_SERVER_DESCRIPTION,
+        MCP_SERVER_NAME,
+        MCP_SERVER_URL,
+        mountAccountNav,
+        requireUser,
+        setStatus,
+      } from '../assets/app.js'
+
+      const content = document.querySelector('#setup-content')
+      const status = document.querySelector('#status')
+      const mcpServerName = MCP_SERVER_NAME.trim() || 'supabase-agent'
+
+      function shellArg(value) {
+        return /^[A-Za-z0-9._/-]+$/.test(value)
+          ? value
+          : `'${value.replaceAll("'", "'\\''")}'`
+      }
+
+      if (configError) {
+        content.hidden = false
+        setStatus(status, configError, true)
+      } else {
+        const supabase = getClient()
+        const user = await requireUser(supabase)
+        if (user) {
+          mountAccountNav(supabase, user)
+
+          document.querySelector('#server-url').textContent = MCP_SERVER_URL
+          document.querySelector('#codex-command').textContent =
+            `codex mcp add ${shellArg(mcpServerName)} --url ${shellArg(MCP_SERVER_URL)}\n` +
+            `codex mcp login ${shellArg(mcpServerName)}`
+          document.querySelector('#chatgpt-url').textContent =
+            `Name: ${mcpServerName}\n` +
+            `Description: ${MCP_SERVER_DESCRIPTION}\n` +
+            `URL: ${MCP_SERVER_URL}`
+          document.querySelector('#claude-command').textContent =
+            `claude mcp add --transport http --scope user ${shellArg(mcpServerName)} ${shellArg(MCP_SERVER_URL)}`
+          document.querySelector('#cursor-config').textContent = JSON.stringify(
+            {
+              mcpServers: {
+                [mcpServerName]: { url: MCP_SERVER_URL },
+              },
+            },
+            null,
+            2,
+          )
+          content.hidden = false
+
+          for (const button of document.querySelectorAll('[data-copy]')) {
+            button.addEventListener('click', async () => {
+              const target = document.querySelector(`#${button.dataset.copy}`)
+              try {
+                await navigator.clipboard.writeText(target.textContent)
+                button.textContent = 'Copied'
+                setTimeout(() => (button.textContent = 'Copy'), 1500)
+              } catch {
+                setStatus(
+                  status,
+                  'Unable to copy automatically. Select the text and copy it manually.',
+                  true,
+                )
+              }
+            })
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

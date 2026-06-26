@@ -1,0 +1,56 @@
+project_id = "supabase-agent-demo"
+
+[api]
+enabled = true
+port = 54331
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54332
+
+[db.pooler]
+port = 54339
+
+[db.seed]
+enabled = true
+# seed.sql sets the local executor password; seed/*.sql holds optional demo data.
+sql_paths = ["./seed.sql", "./seed/*.sql"]
+
+[studio]
+port = 54333
+
+[inbucket]
+port = 54334
+
+[analytics]
+port = 54337
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/private/mcp_custom_access_token_hook"
+
+[auth.oauth_server]
+enabled = true
+authorization_url_path = "/oauth/consent/"
+allow_dynamic_registration = true
+
+[edge_runtime]
+enabled = true
+# per_worker keeps the worker (and its Postgres connection pool) warm across
+# requests. oneshot spawns a fresh worker per request, which rebuilds the pool
+# and runs the cold connect + attestation every time — slow enough that the
+# agent SQL path can exceed the worker boot budget. Restart `functions serve`
+# after editing function code, since per_worker does not hot-reload.
+policy = "per_worker"
+inspector_port = 8093
+deno_version = 2
+
+[functions.mcp-server]
+verify_jwt = false

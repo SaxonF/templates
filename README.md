@@ -35,12 +35,14 @@ npx shadcn@latest view SaxonF/templates/agent
 npx shadcn@latest add SaxonF/templates/auth --dry-run
 ```
 
-## How the registry works
+## How the Registry Works
 
 This repository follows the [GitHub registry model](https://ui.shadcn.com/docs/registry/github):
 
 - A single root [`registry.json`](./registry.json) declares every template in its `items` array.
-- Template source files live under `templates/<id>/supabase/`.
+- Template source files live under `templates/<id>/`. Most templates only ship
+  Supabase files; full starters can also include `public/`, `scripts/`, and
+  other project files.
 - The shadcn CLI reads the manifest from GitHub and installs the referenced files into the user's project.
 
 No registry server or per-template manifest files are required — the GitHub repository is the source of truth.
@@ -59,18 +61,20 @@ shadcn resolves and installs required dependencies from the same registry when n
 
 ### What gets installed
 
-Each item references files from `templates/<id>/supabase/` in the repository. Those files are installed into matching paths in your project (e.g. `~/supabase/schemas/*.sql`, `~/supabase/functions/*/index.ts`, `~/supabase/config/database.toml`). Merge every installed fragment under `supabase/config/*.toml` into `supabase/config.toml` — the shadcn installer does not merge config across templates.
+Each item references files from `templates/<id>/` in the repository. Those files are installed into matching paths in your project (e.g. `~/supabase/schemas/*.sql`, `~/supabase/functions/*/index.ts`, `~/supabase/config/database.toml`, or `~/public/index.html`). Merge every installed fragment under `supabase/config/*.toml` into `supabase/config.toml` — the shadcn installer does not merge config across templates.
 
 ## Repository layout
 
 ```txt
 .
 ├── registry.json                 # Root catalog (all items)
+├── apps/
+│   └── site/                     # Deployable React app and future template UI
 ├── templates/
 │   └── <id>/
 │       ├── readme.md             # Optional docs (included in registry item)
 │       ├── template.json         # Optional metadata source (preferred for edits)
-│       └── supabase/             # Template source files
+│       └── supabase/             # Supabase template source files
 │           ├── config/           # Partial config.toml fragments
 │           ├── schemas/
 │           ├── functions/
@@ -95,7 +99,7 @@ pnpm install
 pnpm sync-registry
 ```
 
-`sync-registry` scans each `templates/<id>/supabase/` directory and rewrites the `items` array in root `registry.json`.
+`sync-registry` scans each `templates/<id>/` directory and rewrites the `items` array in root `registry.json`.
 
 ### Template metadata
 
@@ -141,6 +145,7 @@ npx shadcn@latest registry validate SaxonF/templates
 | `security-rls` | Security |
 | `multi-tenant-rbac` | Security |
 | `agent` | AI |
+| `headless-app` | AI |
 | `ai-rag-pipeline` | AI |
 | … | See `npx shadcn@latest list SaxonF/templates` |
 

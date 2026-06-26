@@ -46,7 +46,7 @@ export async function syncRegistry(packageRoot = defaultPackageRoot) {
   for (const templateId of templateIds) {
     const templateDir = path.join(packageRoot, 'templates', templateId)
     const summary = await readTemplateSummary(packageRoot, templateDir, templateId)
-    const relativeFilePaths = await listFiles(path.join(templateDir, 'supabase'))
+    const relativeFilePaths = await listTemplateFiles(templateDir)
     const docs = await readOptionalReadme(templateDir)
 
     items.push(
@@ -226,6 +226,25 @@ async function listFiles(dir: string): Promise<string[]> {
   return files.flat().sort((a, b) => a.localeCompare(b))
 }
 
+async function listTemplateFiles(templateDir: string): Promise<string[]> {
+  return (await listFiles(templateDir)).filter(isTemplateSourceFile)
+}
+
+function isTemplateSourceFile(relativeFilePath: string): boolean {
+  const basename = path.posix.basename(relativeFilePath)
+  const topLevelFile = !relativeFilePath.includes('/')
+
+  if (basename === '.DS_Store') {
+    return false
+  }
+
+  if (topLevelFile && ['readme.md', 'template.json', 'registry.json'].includes(basename.toLowerCase())) {
+    return false
+  }
+
+  return true
+}
+
 async function fileExists(filePath: string): Promise<boolean> {
   try {
     await access(filePath)
@@ -333,12 +352,10 @@ function createTemplateFileRefs(
   relativeFilePaths: string[]
 ): RegistryFileRef[] {
   return relativeFilePaths.map((relativeFilePath) => {
-    const targetPath = `supabase/${relativeFilePath}`
-
     return {
-      path: `templates/${templateId}/${targetPath}`,
+      path: `templates/${templateId}/${relativeFilePath}`,
       type: 'registry:file',
-      target: `~/${targetPath}`,
+      target: `~/${relativeFilePath}`,
     }
   })
 }

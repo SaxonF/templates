@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "strict": true
+  },
+  "imports": {
+    "@agent-sql": "../_shared/agent-sql/mod.ts"
+  },
+  "tasks": {
+    "check": "deno check index.ts",
+    "test": "deno test ../_shared/agent-sql/policy_test.ts ../_shared/agent-sql/supabase-rls_test.ts"
+  }
+}

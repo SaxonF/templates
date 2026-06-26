@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MCP authorization</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+    <script type="module">
+      // This static site only hosts the sign-in, consent, and client-management
+      // pages. Send the root to the connect page, which gates on sign-in.
+      location.replace('/setup/')
+    </script>
+  </head>
+  <body>
+    <main>
+      <section>
+        <p class="status" role="status">
+          Redirecting to <a href="/setup/">Connect your MCP client</a>…
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

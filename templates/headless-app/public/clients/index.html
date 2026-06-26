@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Authorized clients</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+  </head>
+  <body class="setup-body authenticated-body">
+    <main>
+      <section id="clients-content" hidden>
+        <nav class="site-nav" aria-label="Account">
+          <span id="user-email" class="site-nav-email"></span>
+          <div class="site-nav-links">
+            <a href="/clients/" aria-current="page">Clients</a>
+            <a href="/setup/">Connect MCP</a>
+            <button id="sign-out-button" type="button">Sign out</button>
+          </div>
+        </nav>
+
+        <header class="page-header">
+          <h1>Authorized clients</h1>
+          <p class="muted">
+            Clients with access to your account. Some MCP CLIs register a new
+            entry each time they sign in — revoke any duplicates or stale ones.
+          </p>
+        </header>
+
+        <div id="grant-list" class="grant-list"></div>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <script type="module">
+      import {
+        configError,
+        getClient,
+        mountAccountNav,
+        requireUser,
+        setStatus,
+      } from '../assets/app.js'
+
+      const content = document.querySelector('#clients-content')
+      const grantList = document.querySelector('#grant-list')
+      const status = document.querySelector('#status')
+
+      if (configError) {
+        content.hidden = false
+        setStatus(status, configError, true)
+      } else {
+        const supabase = getClient()
+
+        async function renderGrants() {
+          const { data: grants, error } = await supabase.auth.oauth.listGrants()
+          grantList.replaceChildren()
+
+          if (error) {
+            setStatus(status, error.message, true)
+            return
+          }
+
+          if (!grants?.length) {
+            const empty = document.createElement('p')
+            empty.className = 'muted'
+            empty.textContent = 'No clients are currently authorized.'
+            grantList.append(empty)
+            return
+          }
+
+          for (const grant of grants) {
+            const item = document.createElement('div')
+            item.className = 'grant'
+
+            const name = document.createElement('strong')
+            name.textContent = grant.client?.name ?? grant.client_name ?? grant.client_id
+
+            const scopes = document.createElement('small')
+            scopes.textContent = `Scopes: ${(grant.scopes ?? []).join(', ') || 'none'}`
+
+            const revoke = document.createElement('button')
+            revoke.type = 'button'
+            revoke.className = 'danger'
+            revoke.textContent = 'Revoke access'
+            revoke.addEventListener('click', async () => {
+              revoke.disabled = true
+              const clientId = grant.client?.id ?? grant.client_id
+              const { error: revokeError } = await supabase.auth.oauth.revokeGrant({ clientId })
+              if (revokeError) {
+                setStatus(status, revokeError.message, true)
+                revoke.disabled = false
+                return
+              }
+              setStatus(status, 'Access revoked.')
+              await renderGrants()
+            })
+
+            item.append(name, scopes, revoke)
+            grantList.append(item)
+          }
+        }
+
+        const user = await requireUser(supabase)
+        if (user) {
+          mountAccountNav(supabase, user)
+          content.hidden = false
+          await renderGrants()
+        }
+      }
+    </script>
+  </body>
+</html>

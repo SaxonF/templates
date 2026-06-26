@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in</title>
+    <link rel="stylesheet" href="../assets/styles.css" />
+  </head>
+  <body>
+    <main>
+      <section>
+        <div id="signed-out">
+          <div id="sign-in-view">
+            <h1>Sign in</h1>
+            <p class="muted">Enter your email and password to continue.</p>
+
+            <form id="sign-in-form" class="stack">
+              <label>
+                Email
+                <input name="email" type="email" autocomplete="email" required />
+              </label>
+              <label>
+                Password
+                <input
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  minlength="8"
+                  required
+                />
+              </label>
+              <button type="submit">Sign in</button>
+            </form>
+
+            <p class="auth-alternative">
+              Don't have an account?
+              <button id="show-sign-up" class="text-button" type="button">Sign up</button>
+            </p>
+          </div>
+
+          <div id="sign-up-view" hidden>
+            <h1>Create account</h1>
+            <p class="muted">Enter your email and password to get started.</p>
+
+            <form id="sign-up-form" class="stack">
+              <label>
+                Email
+                <input name="email" type="email" autocomplete="email" required />
+              </label>
+              <label>
+                Password
+                <input
+                  name="password"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                />
+              </label>
+              <button type="submit">Create account</button>
+            </form>
+
+            <p class="auth-alternative">
+              Already have an account?
+              <button id="show-sign-in" class="text-button" type="button">Sign in</button>
+            </p>
+          </div>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <script type="module">
+      import { configError, getClient, setStatus } from '../assets/app.js'
+
+      const status = document.querySelector('#status')
+      const signInView = document.querySelector('#sign-in-view')
+      const signUpView = document.querySelector('#sign-up-view')
+      const signInForm = document.querySelector('#sign-in-form')
+      const signUpForm = document.querySelector('#sign-up-form')
+      const signInButton = signInForm.querySelector('[type="submit"]')
+      const signUpButton = signUpForm.querySelector('[type="submit"]')
+      const defaultAfterAuth = new URLSearchParams(location.search).get('mode') === 'account'
+        ? '/clients/'
+        : '/setup/'
+
+      function showAuthView(view) {
+        signInView.hidden = view !== 'sign-in'
+        signUpView.hidden = view !== 'sign-up'
+        setStatus(status, '')
+      }
+
+      document.querySelector('#show-sign-up').addEventListener('click', () => {
+        showAuthView('sign-up')
+        signUpForm.elements.email.focus()
+      })
+
+      document.querySelector('#show-sign-in').addEventListener('click', () => {
+        showAuthView('sign-in')
+        signInForm.elements.email.focus()
+      })
+
+      function validatedReturnTo() {
+        const value = new URLSearchParams(location.search).get('returnTo')
+        if (!value) return null
+
+        const target = new URL(value, location.origin)
+        return target.origin === location.origin
+          ? `${target.pathname}${target.search}${target.hash}`
+          : null
+      }
+
+      const returnTo = validatedReturnTo()
+
+      if (configError) {
+        setStatus(status, configError, true)
+        signInButton.disabled = true
+        signUpButton.disabled = true
+      } else {
+        const supabase = getClient()
+
+        async function renderSession() {
+          const { data, error } = await supabase.auth.getUser()
+          const user = error ? null : data.user
+
+          if (!user) return
+          location.replace(returnTo ?? defaultAfterAuth)
+        }
+
+        signInForm.addEventListener('submit', async (event) => {
+          event.preventDefault()
+          setStatus(status, '')
+          signInButton.disabled = true
+          signInButton.textContent = 'Signing in…'
+          const fields = new FormData(signInForm)
+          const { error } = await supabase.auth.signInWithPassword({
+            email: String(fields.get('email')),
+            password: String(fields.get('password')),
+          })
+
+          if (error) {
+            setStatus(status, error.message, true)
+            signInButton.disabled = false
+            signInButton.textContent = 'Sign in'
+            return
+          }
+
+          location.assign(returnTo ?? defaultAfterAuth)
+        })
+
+        signUpForm.addEventListener('submit', async (event) => {
+          event.preventDefault()
+          setStatus(status, '')
+          signUpButton.disabled = true
+          signUpButton.textContent = 'Creating account…'
+          const fields = new FormData(signUpForm)
+          const emailRedirectTo = returnTo
+            ? new URL(`/auth/?returnTo=${encodeURIComponent(returnTo)}`, location.origin)
+            : new URL(defaultAfterAuth, location.origin)
+
+          const { data, error } = await supabase.auth.signUp({
+            email: String(fields.get('email')),
+            password: String(fields.get('password')),
+            options: { emailRedirectTo: emailRedirectTo.toString() },
+          })
+
+          if (error) {
+            setStatus(status, error.message, true)
+            signUpButton.disabled = false
+            signUpButton.textContent = 'Create account'
+            return
+          }
+
+          if (data.session) location.assign(returnTo ?? defaultAfterAuth)
+          else {
+            signUpButton.disabled = false
+            signUpButton.textContent = 'Create account'
+            setStatus(status, 'Check your email to confirm your account, then return here.')
+          }
+        })
+
+        await renderSession()
+      }
+    </script>
+  </body>
+</html>
