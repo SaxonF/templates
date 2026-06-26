@@ -46,15 +46,39 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, apikey, x-client-info',
+  // The browser client reads the session id off the response, which requires
+  // exposing the header for cross-origin requests.
+  'Access-Control-Expose-Headers': 'X-Agent-Session-Id',
+}
+
+function corsResponse(body: BodyInit | null, init: ResponseInit = {}): Response {
+  return new Response(body, { ...init, headers: { ...CORS_HEADERS, ...init.headers } })
+}
+
+function corsJson(data: unknown, init: ResponseInit = {}): Response {
+  return corsResponse(JSON.stringify(data), {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...init.headers },
+  })
+}
+
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return corsResponse(null, { status: 204 })
+  }
+
   if (req.method !== 'POST') {
-    return new Response('expected POST request', { status: 405 })
+    return corsResponse('expected POST request', { status: 405 })
   }
 
   const parseResult = requestSchema.safeParse(await req.json())
 
   if (!parseResult.success) {
-    return new Response(`invalid request body: ${parseResult.error.message}`, { status: 400 })
+    return corsResponse(`invalid request body: ${parseResult.error.message}`, { status: 400 })
   }
 
   const authHeader = req.headers.get('Authorization') ?? ''
@@ -69,7 +93,7 @@ Deno.serve(async (req) => {
   } = await userClient.auth.getUser()
 
   if (userError || !user) {
-    return Response.json({ error: 'valid user JWT is required' }, { status: 401 })
+    return corsJson({ error: 'valid user JWT is required' }, { status: 401 })
   }
 
   const body = parseResult.data
@@ -81,7 +105,7 @@ Deno.serve(async (req) => {
   })
 
   if (!sessionId) {
-    return Response.json({ error: 'session not found or not owned by user' }, { status: 404 })
+    return corsJson({ error: 'session not found or not owned by user' }, { status: 404 })
   }
 
   await serviceClient.from('agent_memories').insert({
@@ -98,7 +122,7 @@ Deno.serve(async (req) => {
     mcpServers = await loadMcpServers(serviceClient, body.mcpServers, authHeader)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    return Response.json({ error: message }, { status: 400 })
+    return corsJson({ error: message }, { status: 400 })
   }
 
   // Connect to each MCP server with the AI SDK's MCP client over Streamable
@@ -154,6 +178,7 @@ Deno.serve(async (req) => {
 
   return new Response(stream, {
     headers: {
+      ...CORS_HEADERS,
       'Content-Type': 'text/plain; charset=utf-8',
       'X-Agent-Session-Id': sessionId,
     },
