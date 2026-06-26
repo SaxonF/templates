@@ -10,6 +10,10 @@ const DEFAULT_MODEL = 'gpt-5.4-mini'
 const DEFAULT_SYSTEM_PROMPT =
   'You are a helpful assistant. Use available tools when they are relevant, and cite tool results clearly.'
 const MAX_HISTORY_MESSAGES = 24
+// Max model steps per turn. Each tool call + the final text answer is a step, so
+// a multi-step task (look up a list, create it, insert a row, then reply) can
+// easily need several. Too low and the turn ends mid-tool-use with no answer.
+const MAX_STEPS = 12
 
 const mcpServerSchema = z.object({
   name: z.string().min(1),
@@ -130,12 +134,26 @@ Deno.serve(async (req) => {
   // mcp-server framework accepts via its first-party auth path.
   const { tools, clients } = await buildMcpTools(mcpServers)
 
+  const modelId = body.model ?? Deno.env.get('OPENAI_MODEL') ?? DEFAULT_MODEL
+
+  console.info('agent-chat: start', {
+    sessionId,
+    model: modelId,
+    tools: Object.keys(tools),
+    historyMessages: history.length,
+  })
+
   const result = streamText({
-    model: openai(body.model ?? Deno.env.get('OPENAI_MODEL') ?? DEFAULT_MODEL),
+    model: openai(modelId),
     system: body.system ?? DEFAULT_SYSTEM_PROMPT,
     messages: toModelMessages(history),
     tools,
-    stopWhen: stepCountIs(5),
+    stopWhen: stepCountIs(MAX_STEPS),
+    // Without onError, model/tool failures during streaming are swallowed and
+    // the client just sees an empty 200. Surface them in the logs.
+    onError({ error }) {
+      console.error('agent-chat: streamText error', error instanceof Error ? error.message : String(error))
+    },
   })
 
   const encoder = new TextEncoder()
@@ -143,31 +161,63 @@ Deno.serve(async (req) => {
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let textDeltas = 0
+      let toolCalls = 0
+      let finishReason: string | undefined
+
       try {
         for await (const part of result.fullStream) {
           if (part.type === 'text-delta') {
+            textDeltas++
             assistantText += part.text
             controller.enqueue(encoder.encode(part.text))
+          } else if (part.type === 'tool-call') {
+            toolCalls++
+            console.info('agent-chat: tool-call', part.toolName)
+          } else if (part.type === 'tool-error') {
+            console.error('agent-chat: tool-error', part.toolName, String(part.error))
+          } else if (part.type === 'finish') {
+            finishReason = part.finishReason
           } else if (part.type === 'error') {
             const message = part.error instanceof Error ? part.error.message : String(part.error)
-            console.error('agent stream error:', message)
+            console.error('agent-chat: stream error part:', message)
             const errorText = `\n\nError: ${message}`
             assistantText += errorText
             controller.enqueue(encoder.encode(errorText))
           }
         }
 
+        console.info('agent-chat: done', {
+          sessionId,
+          textDeltas,
+          toolCalls,
+          finishReason,
+          responseLength: assistantText.length,
+        })
+
+        // A finished-but-empty turn (e.g. the model stopped on tool-calls or hit
+        // the step limit) would otherwise be a silent blank 200. Surface it.
+        if (!assistantText) {
+          console.warn('agent-chat: empty response', { sessionId, finishReason, toolCalls })
+          const note =
+            finishReason === 'tool-calls'
+              ? 'The agent stopped while still using tools (step limit reached). Please try again or rephrase.'
+              : 'The agent finished without producing a response. Please try again.'
+          assistantText = note
+          controller.enqueue(encoder.encode(note))
+        }
+
         await serviceClient.from('agent_memories').insert({
           session_id: sessionId,
           role: 'assistant',
           content: assistantText,
-          state: { model: body.model ?? Deno.env.get('OPENAI_MODEL') ?? DEFAULT_MODEL },
+          state: { model: modelId, finishReason: finishReason ?? null },
         })
 
         controller.close()
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        console.error('agent stream failed:', message)
+        console.error('agent-chat: stream failed:', message)
         controller.enqueue(encoder.encode(`\n\nError: ${message}`))
         controller.close()
       } finally {
