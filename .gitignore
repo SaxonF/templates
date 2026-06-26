@@ -4,3 +4,8 @@ dist/
 build/
 *.tsbuildinfo
 .DS_Store
+
+# Env files — ignore every .env (including supabase/functions/.env) except the committed examples
+.env
+.env.*
+!.env.example

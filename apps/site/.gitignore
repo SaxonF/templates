@@ -1,4 +1,6 @@
 .vercel
+
+# Env files — ignore every .env except the committed examples
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
