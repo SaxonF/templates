@@ -33,14 +33,7 @@ export function PageShell({
   return (
     <div className={cn('flex min-h-screen flex-col bg-background text-foreground', className)}>
       <SiteNav user={user} variant={variant} activePage={activePage} />
-      <main
-        className={cn(
-          'flex w-full flex-1 justify-center',
-          variant === 'minimal' && 'items-center'
-        )}
-      >
-        {children}
-      </main>
+      <main className="flex w-full flex-1 items-center justify-center">{children}</main>
     </div>
   )
 }

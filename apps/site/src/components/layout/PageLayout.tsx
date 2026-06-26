@@ -9,12 +9,12 @@ interface PageLayoutProps {
   align?: 'top' | 'center'
 }
 
-export function PageLayout({ intro, panel, className, align = 'top' }: PageLayoutProps) {
+export function PageLayout({ intro, panel, className, align = 'center' }: PageLayoutProps) {
   return (
     <div
       className={cn(
-        'mx-auto grid w-full max-w-[var(--page-layout-width)] grid-cols-1 items-start gap-8 px-5 pb-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,var(--page-panel-width))] lg:gap-x-[6.5rem] lg:gap-y-12',
-        align === 'top' ? 'pt-[8rem]' : 'py-8',
+        'mx-auto grid w-full max-w-[var(--page-layout-width)] grid-cols-1 gap-8 px-5 pb-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,var(--page-panel-width))] lg:gap-x-[6.5rem] lg:gap-y-12',
+        align === 'top' ? 'items-start pt-[8rem]' : 'items-center py-8',
         className
       )}
     >

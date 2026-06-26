@@ -110,10 +110,17 @@ supabase functions deploy mcp-server
 Then provision the executor login (the one secret to set by hand):
 
 ```bash
-# as the postgres/admin role: alter role mcp_sql_executor with password '<STRONG_PASSWORD>';
+supabase db query --linked "alter role mcp_sql_executor with password '<STRONG_PASSWORD>';"
+
+# Copy the Transaction pooler host from Dashboard → Database (e.g.
+# aws-0-ap-southeast-2.pooler.supabase.com). Username: mcp_sql_executor.<PROJECT_REF>.
 supabase secrets set \
-  MCP_DB_URL="postgresql://mcp_sql_executor.PROJECT_REF:STRONG_PASSWORD@REGION.pooler.supabase.com:6543/postgres"
+  MCP_DB_URL="postgresql://mcp_sql_executor.<PROJECT_REF>:<STRONG_PASSWORD>@aws-0-<region>.pooler.supabase.com:6543/postgres" \
+  MCP_RESOURCE_URL="https://<project-ref>.supabase.co/functions/v1/mcp-server" \
+  MCP_AUTH_ISSUER="https://<project-ref>.supabase.co/auth/v1"
 ```
 
-Host `public/` at an HTTPS origin and set it as the Auth Site URL. For custom
-domains, set `MCP_RESOURCE_URL` and `MCP_AUTH_ISSUER`.
+Host `public/` at an HTTPS origin and set it as the Auth Site URL. On hosted
+Supabase, `MCP_RESOURCE_URL` and `MCP_AUTH_ISSUER` are required — Edge Functions
+otherwise advertise internal URLs and OAuth clients cannot discover auth. For
+custom domains, point those vars at your public origin instead.

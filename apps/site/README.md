@@ -83,26 +83,50 @@ and redirect comparisons are exact.
    supabase link --project-ref <project-ref>
    ```
 
-2. Push migrations:
+2. Push migrations and auth config:
 
    ```bash
    supabase db push
+   supabase config push   # enables the access-token hook + OAuth server
    ```
 
-3. Set the executor database URL as a function secret. Use the transaction
-   pooler URL for the dedicated `mcp_sql_executor` role:
+3. Set a password on the executor role (the seed file is local-only and never
+   runs on hosted projects):
 
    ```bash
-   supabase secrets set MCP_DB_URL="postgresql://mcp_sql_executor.<PROJECT_REF>:<PASSWORD>@<REGION>.pooler.supabase.com:6543/postgres"
+   supabase db query --linked "alter role mcp_sql_executor with password '<STRONG_PASSWORD>';"
    ```
 
-4. Deploy the function:
+4. Set function secrets. Copy the **Transaction pooler** host from Dashboard →
+   Project Settings → Database (it looks like
+   `aws-0-ap-southeast-2.pooler.supabase.com`, not `<region>.pooler.supabase.com`).
+   The username must include the project ref:
+   `mcp_sql_executor.<PROJECT_REF>`.
+
+   ```bash
+   supabase secrets set \
+     MCP_DB_URL="postgresql://mcp_sql_executor.<PROJECT_REF>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:6543/postgres" \
+     MCP_RESOURCE_URL="https://<project-ref>.supabase.co/functions/v1/mcp-server" \
+     MCP_AUTH_ISSUER="https://<project-ref>.supabase.co/auth/v1" \
+     MCP_SERVER_NAME="tasks" \
+     MCP_SERVER_DESCRIPTION="MCP access to the tasks database for the signed-in user."
+   ```
+
+   `MCP_RESOURCE_URL` and `MCP_AUTH_ISSUER` are required on hosted Supabase.
+   Without them, OAuth discovery advertises internal Edge Runtime URLs and MCP
+   clients fail with "No authorization support detected".
+
+5. Deploy the function:
 
    ```bash
    supabase functions deploy mcp-server
    ```
 
-5. Configure the Vercel project environment:
+6. In Dashboard → Authentication → URL Configuration, set **Site URL** to your
+   deployed frontend origin (e.g. your Vercel URL). Add the same origin to
+   **Redirect URLs** if OAuth sign-in fails.
+
+7. Configure the Vercel project environment:
 
    ```bash
    VITE_SUPABASE_URL=https://<project-ref>.supabase.co
@@ -112,7 +136,7 @@ and redirect comparisons are exact.
    VITE_MCP_SERVER_DESCRIPTION="MCP access to the tasks database for the signed-in user."
    ```
 
-6. Deploy the frontend to Vercel from this workspace package:
+8. Deploy the frontend to Vercel from this workspace package:
 
    ```bash
    pnpm --filter @saxonf/site build

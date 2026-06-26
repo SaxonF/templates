@@ -87,8 +87,8 @@ export function registerMyTool(server: McpServer, { supabase }: ToolContext): vo
 | `MCP_SERVER_NAME` | `supabase-agent` | Display name shown in MCP clients. |
 | `MCP_SERVER_DESCRIPTION` | _(generic)_ | Server description / instructions. |
 | `MCP_ALLOW_FIRST_PARTY_JWT` | `true` | Accept first-party Supabase JWTs in addition to OAuth tokens. |
-| `MCP_RESOURCE_URL` | _(derived)_ | Override the canonical resource URL (custom domains). |
-| `MCP_AUTH_ISSUER` | _(derived)_ | Override the canonical auth issuer (custom domains). |
+| `MCP_RESOURCE_URL` | _(derived)_ | Override the canonical resource URL. **Required on hosted Supabase** (Edge Functions derive internal URLs). Also use for custom domains. |
+| `MCP_AUTH_ISSUER` | _(derived)_ | Override the canonical auth issuer. **Required on hosted Supabase.** Also use for custom domains. |
 
 ## Local endpoint
 
