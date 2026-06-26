@@ -25,7 +25,7 @@ create table public.profiles (
 
 create table public.task_lists (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   name text not null,
   color text not null default 'slate',
   position integer not null default 0,
@@ -38,7 +38,7 @@ create table public.task_lists (
 
 create table public.tasks (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   list_id uuid not null,
   title text not null,
   description text not null default '',
@@ -59,7 +59,7 @@ create table public.tasks (
 
 create table public.task_events (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   task_id uuid not null,
   event_type text not null
     check (event_type in ('created', 'commented', 'status_changed', 'due_date_changed', 'completed')),

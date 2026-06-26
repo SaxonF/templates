@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { getClient } from '@/lib/supabase'
 
 export type SiteNavVariant = 'landing' | 'minimal' | 'account'
-export type ActivePage = 'clients' | 'setup' | 'tasks'
+export type ActivePage = 'agent' | 'clients' | 'setup' | 'tasks'
 
 interface SiteNavProps {
   user?: User | null
@@ -154,6 +154,9 @@ export function SiteNav({ user, variant = 'account', activePage }: SiteNavProps)
               </NavLink>
               <NavLink href="/clients/" current={activePage === 'clients'}>
                 Clients
+              </NavLink>
+              <NavLink href="/agent/" current={activePage === 'agent'}>
+                Agent
               </NavLink>
               <NavLink href="/setup/" current={activePage === 'setup'}>
                 Connect MCP

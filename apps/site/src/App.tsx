@@ -1,3 +1,4 @@
+import { AgentPage } from '@/pages/AgentPage'
 import { AuthPage } from '@/pages/AuthPage'
 import { ClientsPage } from '@/pages/ClientsPage'
 import { ConsentPage } from '@/pages/ConsentPage'
@@ -9,6 +10,7 @@ export function App() {
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/'
 
   if (pathname === '/auth') return <AuthPage />
+  if (pathname === '/agent') return <AgentPage />
   if (pathname === '/setup') return <SetupPage />
   if (pathname === '/tasks') return <TasksPage />
   if (pathname === '/clients') return <ClientsPage />
