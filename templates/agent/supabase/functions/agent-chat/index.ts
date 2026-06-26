@@ -13,7 +13,7 @@ const MAX_HISTORY_MESSAGES = 24
 // Max model steps per turn. Each tool call + the final text answer is a step, so
 // a multi-step task (look up a list, create it, insert a row, then reply) can
 // easily need several. Too low and the turn ends mid-tool-use with no answer.
-const MAX_STEPS = 12
+const MAX_STEPS = 10
 
 const mcpServerSchema = z.object({
   name: z.string().min(1),
