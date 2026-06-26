@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils'
 
 const AGENT_CHAT_URL = `${SUPABASE_URL}/functions/v1/agent-chat`
 
+const INSTALL_COMMAND = 'npx shadcn@latest add SaxonF/templates/agent'
+
 const SYSTEM_PROMPT = [
   'You are a task management assistant for the signed-in user.',
   'You have direct access to their tasks database through the available tools.',
@@ -108,11 +110,16 @@ function AgentContent() {
   return (
     <PageLayout
       intro={
-        <PageIntro
-          title="Agent"
-          titleClassName="text-base"
-          lead="This page is built with the Agent template — it isn't part of the headless app itself, it's here to show how that template works. The agent runs as the signed-in user, streams through the agent-chat Edge Function, and calls your MCP server's tools, so it only reads and edits the rows your RLS policies allow."
-        />
+        <>
+          <PageIntro
+            title="Agent"
+            titleClassName="text-base"
+            lead="Built with the Agent template — not part of the headless app, just a demo of how it works. The agent runs as the signed-in user through the agent-chat Edge Function and calls your MCP server's tools, so it only touches the rows your RLS policies allow."
+          />
+          <div className="mt-6">
+            <InstallCommand />
+          </div>
+        </>
       }
       panel={
         <div className="flex h-[360px] flex-col overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#171717] sm:h-[420px]">
@@ -180,5 +187,34 @@ function AgentContent() {
         </div>
       }
     />
+  )
+}
+
+function InstallCommand() {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(INSTALL_COMMAND)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1600)
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2.5 rounded-[13px] border border-border bg-white/[0.04] py-2 pr-2.5 pl-3">
+      <code className="min-w-0 flex-1 truncate font-mono text-[14.5px] text-[#e5e7eb]">
+        <span className="text-primary">$</span> {INSTALL_COMMAND}
+      </code>
+      <button
+        type="button"
+        onClick={copy}
+        className="flex-none rounded-lg border border-border bg-white/[0.06] px-2.5 py-1.5 text-[13px] text-[#c5c9d0] transition-colors hover:bg-white/[0.12] hover:text-white"
+      >
+        {copied ? 'Copied ✓' : 'Copy'}
+      </button>
+    </div>
   )
 }
