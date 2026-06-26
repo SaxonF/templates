@@ -2,12 +2,13 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 
 import { PageShell } from '@/components/layout/PageShell'
+import type { ActivePage } from '@/components/layout/SiteNav'
 import { configError } from '@/lib/config'
 import { getClient, redirectToAuth } from '@/lib/supabase'
 
 interface AuthGateProps {
   children: (user: User) => ReactNode
-  activePage?: 'clients' | 'setup'
+  activePage?: ActivePage
 }
 
 export function AuthGate({ children, activePage }: AuthGateProps) {

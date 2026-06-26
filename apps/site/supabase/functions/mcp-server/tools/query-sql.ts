@@ -1,12 +1,12 @@
 import type { McpServer } from "npm:@modelcontextprotocol/sdk@1.29.0/server/mcp.js";
 import { z } from "npm:zod@4.4.3";
 
-import type { ToolContext } from "./index.ts";
+import type { SqlToolContext } from "./index.ts";
 import { jsonResult, runtimeErrorResult } from "./result.ts";
 
 export function registerQuerySqlTool(
   server: McpServer,
-  { sql, principal }: ToolContext,
+  { sql, principal }: SqlToolContext,
 ): void {
   server.registerTool(
     "query_sql",

@@ -3,7 +3,7 @@ import {
   createAgentSqlRuntime,
   createSupabaseRlsAdapter,
   type SupabasePrincipal,
-} from "@agent-sql";
+} from "../_shared/agent-sql/mod.ts";
 
 let runtime: AgentSqlRuntime<SupabasePrincipal> | null = null;
 
@@ -23,6 +23,9 @@ function readPositiveInteger(name: string, fallback: number): number {
   return parsed;
 }
 
+// The agent SQL runtime is a module singleton: tool registration pulls it from
+// here instead of receiving it through the base ToolContext, so the framework
+// never has to know this tool template exists.
 export function getSqlRuntime(): AgentSqlRuntime<SupabasePrincipal> {
   if (runtime) return runtime;
 

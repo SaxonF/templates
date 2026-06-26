@@ -6,22 +6,32 @@ import { WebStandardStreamableHTTPServerTransport } from "npm:@modelcontextproto
 import {
   applyCors,
   authenticateRequest,
-  getOAuthConfig,
+  getAuthConfig,
   isProtectedResourceMetadataRequest,
   optionsResponse,
   protectedResourceMetadataResponse,
-} from "./oauth.ts";
-import { getSqlRuntime } from "./sql-runtime.ts";
+} from "./auth.ts";
 import { registerTools } from "./tools/index.ts";
+
+// =============================================================================
+// MCP server framework (Supabase Edge Function)
+// =============================================================================
+//
+// This is the reusable transport + auth + tool-registry shell. It exposes the
+// signed-in Supabase user's tools over the official MCP Streamable HTTP
+// transport. It deliberately knows NOTHING about specific tools — tool
+// templates (e.g. mcp-sql) add files under ./tools/ and extend ./tools/index.ts.
+//
+// See readme.md → "Composition contract".
 
 function readTextEnv(name: string, fallback: string): string {
   return Deno.env.get(name)?.trim() || fallback;
 }
 
-const SERVER_NAME = readTextEnv("MCP_SERVER_NAME", "tasks");
+const SERVER_NAME = readTextEnv("MCP_SERVER_NAME", "supabase-agent");
 const SERVER_DESCRIPTION = readTextEnv(
   "MCP_SERVER_DESCRIPTION",
-  "MCP access to the tasks database for the signed-in user.",
+  "MCP access to this Supabase project for the signed-in user.",
 );
 
 const SERVER_INFO = {
@@ -31,24 +41,22 @@ const SERVER_INFO = {
 
 const SERVER_INSTRUCTIONS =
   `${SERVER_DESCRIPTION} ` +
-  "All access is scoped to the signed-in Supabase user and enforced by role grants and Row Level Security. " +
-  "Use list_database_objects and the describe tools to inspect the available schema. " +
-  "Use query_sql for one read-only SELECT and execute_sql for one INSERT, UPDATE, DELETE, or MERGE; " +
-  "the user's grants and RLS policies apply to both. Writes should use RETURNING selectively. " +
-  "This project may define additional tools; some may have side effects, so inspect a tool before calling it.";
+  "Every tool runs as the signed-in Supabase user; role grants and Row Level Security apply. " +
+  "Call tools/list to discover the tools this project exposes, and read a tool's description " +
+  "and annotations before calling it — some tools may have side effects.";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return optionsResponse();
   }
 
-  const oauth = getOAuthConfig(request);
+  const auth = getAuthConfig(request);
 
   if (isProtectedResourceMetadataRequest(request)) {
-    return protectedResourceMetadataResponse(oauth);
+    return protectedResourceMetadataResponse(auth);
   }
 
-  const authentication = await authenticateRequest(request, oauth);
+  const authentication = await authenticateRequest(request, auth);
   if (!authentication.ok) {
     return applyCors(authentication.response);
   }
@@ -59,8 +67,8 @@ Deno.serve(async (request) => {
 
   registerTools(server, {
     supabase: authentication.context.supabase,
-    sql: getSqlRuntime(),
     principal: { claims: authentication.context.claims },
+    request,
   });
 
   const transport = new WebStandardStreamableHTTPServerTransport({

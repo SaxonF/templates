@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { getClient } from '@/lib/supabase'
 
 export type SiteNavVariant = 'landing' | 'minimal' | 'account'
-export type ActivePage = 'clients' | 'setup'
+export type ActivePage = 'clients' | 'setup' | 'tasks'
 
 interface SiteNavProps {
   user?: User | null
@@ -149,6 +149,9 @@ export function SiteNav({ user, variant = 'account', activePage }: SiteNavProps)
               /
             </span>
             <div className="flex flex-wrap items-center gap-[0.85rem]">
+              <NavLink href="/tasks/" current={activePage === 'tasks'}>
+                Tasks
+              </NavLink>
               <NavLink href="/clients/" current={activePage === 'clients'}>
                 Clients
               </NavLink>

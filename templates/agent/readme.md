@@ -1,8 +1,8 @@
 # Agent template
 
-Build persistent AI agents on Supabase with a streaming chat endpoint, session history, long-term memory, and MCP tool access. The generated `agent-chat` Edge Function uses the AI SDK to stream model responses back to clients while persisting user and assistant messages in Postgres.
+Build persistent AI agents on Supabase with a streaming chat endpoint, session history, long-term memory, and MCP tool access. The generated `agent-chat` Edge Function uses **AI SDK 7** to stream model responses back to clients while persisting user and assistant messages in Postgres.
 
-The agent can call tools from connected MCP servers. If you also add the **mcp-server** template, the agent can use that local Edge Function MCP server as one of its tool sources.
+The agent is **standalone** — it connects to whatever MCP servers are deployed and uses the AI SDK's built-in MCP client (`@ai-sdk/mcp`) over Streamable HTTP. Add the **mcp-server** framework (plus tool templates like **mcp-sql**) and the agent automatically discovers and uses their tools; no client-side MCP wiring required.
 
 ## What's included
 
@@ -21,7 +21,7 @@ Memory rows can store arbitrary JSON payloads. Add the **ai-vector-search** or *
 
 ### MCP tools
 
-`agent-chat` discovers tools from MCP servers and exposes them to the AI SDK model call.
+`agent-chat` connects to each MCP server with the AI SDK MCP client (`createMCPClient` over Streamable HTTP), calls `client.tools()`, and passes the merged tool set to the model. Clients are closed when the stream finishes. The caller's JWT is forwarded in the `Authorization` header, which the **mcp-server** framework accepts via its first-party auth path.
 
 **Default behavior**
 
@@ -95,7 +95,7 @@ For production, review RLS policies in `agent.sql`, restrict service-role usage 
 
 ## MCP tool schemas
 
-MCP tools expose JSON Schema. The AI SDK expects Zod or a `jsonSchema()` wrapper — `agent-chat` wraps MCP `inputSchema` values automatically with `strict: false`. If you fork the function, keep that wrapper or tool calls will fail with `schema is not a function`.
+The AI SDK MCP client (`@ai-sdk/mcp`) discovers each server's tools and converts their JSON Schemas into model-ready tools automatically — no manual `jsonSchema()` wrapper needed. `agent-chat` only namespaces the tool keys as `<server>_<tool>` so multiple servers can't collide.
 
 ## Debugging
 

@@ -7,7 +7,7 @@
       "name": "agent",
       "type": "registry:item",
       "title": "Agent",
-      "description": "Streaming AI SDK agent endpoint with session persistence, memory, and MCP tool access",
+      "description": "Persistent streaming AI agent on Supabase (AI SDK 7) with session history, memory, and native MCP tool access over Streamable HTTP",
       "categories": [
         "AI"
       ],
@@ -34,21 +34,19 @@
           "target": "~/supabase/schemas/agent.sql"
         }
       ],
-      "docs": "# Agent template\n\nBuild persistent AI agents on Supabase with a streaming chat endpoint, session history, long-term memory, and MCP tool access. The generated `agent-chat` Edge Function uses the AI SDK to stream model responses back to clients while persisting user and assistant messages in Postgres.\n\nThe agent can call tools from connected MCP servers. If you also add the **mcp-server** template, the agent can use that local Edge Function MCP server as one of its tool sources.\n\n## What's included\n\n| Asset         | Path                                      | Purpose                                      |\n| ------------- | ----------------------------------------- | -------------------------------------------- |\n| Schema        | `supabase/schemas/agent.sql`              | Sessions, messages, memory, MCP servers, RLS |\n| Edge Function | `supabase/functions/agent-chat/index.ts`  | Streaming AI SDK chat endpoint               |\n\n### Sessions and messages\n\nEach session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response. The function verifies the caller's JWT, then writes sessions and messages with the service role — grant `service_role` table access in `agent.sql` so those inserts succeed.\n\n### Memory and recall\n\nMemory rows can store arbitrary JSON payloads. Add the **ai-vector-search** or **ai-automatic-embeddings** template for embedding columns, HNSW indexes, and similarity search helpers. The base agent schema intentionally omits pgvector objects so `supabase db diff` works reliably on fresh projects.\n\n### MCP tools\n\n`agent-chat` discovers tools from MCP servers and exposes them to the AI SDK model call.\n\n**Default behavior**\n\n`agent-chat` automatically connects to this project's `mcp-server` Edge Function at `${SUPABASE_URL}/functions/v1/mcp-server` and forwards the caller's JWT. You do not need to pass `mcpServers` from the browser for that.\n\n**Minimal client example**\n\n```ts\nconst response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {\n  method: 'POST',\n  headers: {\n    Authorization: `Bearer ${session.access_token}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    sessionId,\n    message: 'List my notes',\n  }),\n})\n```\n\n**Configuring MCP servers (persistent)**\n\n```sql\ninsert into public.agent_mcp_servers (name, url)\nvalues\n  ('project', '/functions/v1/mcp-server'),  -- relative path; resolved server-side\n  ('external', 'https://api.example.com/mcp'); -- external host; used as-is\n```\n\n**Request-scoped overrides** — only for additional servers or explicit header overrides:\n\n```ts\nmcpServers: [{ name: 'external', url: 'https://api.example.com/mcp' }]\n```\n\n| URL shape | Resolved to |\n| --------- | ----------- |\n| `/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |\n| `https://<ref>.supabase.co/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |\n| `https://other-host/...` | unchanged |\n\nTool names are namespaced as `<server>_<tool>` (e.g. `project_list_notes`). Mention this in app system prompts if you customize behavior.\n\n## Dependencies\n\n**Required**\n\n- `database` — base Supabase project config\n- `api` — REST/GraphQL surface for client access\n- `auth` — user-scoped sessions and RLS\n- `functions` — Edge Functions runtime\n\n**Optional**\n\n- `ai-vector-search` — pgvector similarity over memory embeddings\n- `ai-automatic-embeddings` — keep embeddings in sync via triggers\n- `mcp-server` — Edge Function MCP server the agent connects to automatically when installed; no client-side MCP configuration required\n\n## Getting started\n\n1. Add this template (and its required dependencies) to your composition.\n2. Generate an initial migration before seeding — see the **database** template readme (`supabase db diff -f initial_schema`, then `supabase db reset`).\n3. Configure model provider secrets:\n   - **Local:** copy `supabase/functions/.env.example` to `supabase/functions/.env` (auto-loaded by `supabase start`). Restart with `supabase stop && supabase start` after changes.\n   - **Hosted:** `supabase secrets set OPENAI_API_KEY=...` and optionally `OPENAI_MODEL=gpt-4o-mini`.\n4. Deploy Edge Functions: `supabase functions deploy agent-chat`.\n5. From your app, POST `{ message, sessionId? }` to `agent-chat` and read the streamed text response.\n\nFor production, review RLS policies in `agent.sql`, restrict service-role usage to server-side agent loops, and avoid storing long-lived third-party MCP secrets directly in `agent_mcp_servers.headers`.\n\n## MCP tool schemas\n\nMCP tools expose JSON Schema. The AI SDK expects Zod or a `jsonSchema()` wrapper — `agent-chat` wraps MCP `inputSchema` values automatically with `strict: false`. If you fork the function, keep that wrapper or tool calls will fail with `schema is not a function`.\n\n## Debugging\n\n- Run `supabase functions serve agent-chat --no-verify-jwt` and watch the terminal for MCP load errors and model failures.\n- `agent-chat` streams error text to the client on model or tool failures instead of returning an empty 200 response.\n- If the model invents tool names, MCP discovery likely failed — check Edge Function logs for `failed to load MCP tools` or `no MCP tools loaded`.\n- Do not pass browser/public Supabase URLs into `mcpServers`; `agent-chat` resolves same-project function URLs via `SUPABASE_URL` itself.\n- User-scoped MCP tools require the caller JWT; `agent-chat` forwards `Authorization` automatically.",
+      "docs": "# Agent template\n\nBuild persistent AI agents on Supabase with a streaming chat endpoint, session history, long-term memory, and MCP tool access. The generated `agent-chat` Edge Function uses **AI SDK 7** to stream model responses back to clients while persisting user and assistant messages in Postgres.\n\nThe agent is **standalone** — it connects to whatever MCP servers are deployed and uses the AI SDK's built-in MCP client (`@ai-sdk/mcp`) over Streamable HTTP. Add the **mcp-server** framework (plus tool templates like **mcp-sql**) and the agent automatically discovers and uses their tools; no client-side MCP wiring required.\n\n## What's included\n\n| Asset         | Path                                      | Purpose                                      |\n| ------------- | ----------------------------------------- | -------------------------------------------- |\n| Schema        | `supabase/schemas/agent.sql`              | Sessions, messages, memory, MCP servers, RLS |\n| Edge Function | `supabase/functions/agent-chat/index.ts`  | Streaming AI SDK chat endpoint               |\n\n### Sessions and messages\n\nEach session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response. The function verifies the caller's JWT, then writes sessions and messages with the service role — grant `service_role` table access in `agent.sql` so those inserts succeed.\n\n### Memory and recall\n\nMemory rows can store arbitrary JSON payloads. Add the **ai-vector-search** or **ai-automatic-embeddings** template for embedding columns, HNSW indexes, and similarity search helpers. The base agent schema intentionally omits pgvector objects so `supabase db diff` works reliably on fresh projects.\n\n### MCP tools\n\n`agent-chat` connects to each MCP server with the AI SDK MCP client (`createMCPClient` over Streamable HTTP), calls `client.tools()`, and passes the merged tool set to the model. Clients are closed when the stream finishes. The caller's JWT is forwarded in the `Authorization` header, which the **mcp-server** framework accepts via its first-party auth path.\n\n**Default behavior**\n\n`agent-chat` automatically connects to this project's `mcp-server` Edge Function at `${SUPABASE_URL}/functions/v1/mcp-server` and forwards the caller's JWT. You do not need to pass `mcpServers` from the browser for that.\n\n**Minimal client example**\n\n```ts\nconst response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {\n  method: 'POST',\n  headers: {\n    Authorization: `Bearer ${session.access_token}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    sessionId,\n    message: 'List my notes',\n  }),\n})\n```\n\n**Configuring MCP servers (persistent)**\n\n```sql\ninsert into public.agent_mcp_servers (name, url)\nvalues\n  ('project', '/functions/v1/mcp-server'),  -- relative path; resolved server-side\n  ('external', 'https://api.example.com/mcp'); -- external host; used as-is\n```\n\n**Request-scoped overrides** — only for additional servers or explicit header overrides:\n\n```ts\nmcpServers: [{ name: 'external', url: 'https://api.example.com/mcp' }]\n```\n\n| URL shape | Resolved to |\n| --------- | ----------- |\n| `/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |\n| `https://<ref>.supabase.co/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |\n| `https://other-host/...` | unchanged |\n\nTool names are namespaced as `<server>_<tool>` (e.g. `project_list_notes`). Mention this in app system prompts if you customize behavior.\n\n## Dependencies\n\n**Required**\n\n- `database` — base Supabase project config\n- `api` — REST/GraphQL surface for client access\n- `auth` — user-scoped sessions and RLS\n- `functions` — Edge Functions runtime\n\n**Optional**\n\n- `ai-vector-search` — pgvector similarity over memory embeddings\n- `ai-automatic-embeddings` — keep embeddings in sync via triggers\n- `mcp-server` — Edge Function MCP server the agent connects to automatically when installed; no client-side MCP configuration required\n\n## Getting started\n\n1. Add this template (and its required dependencies) to your composition.\n2. Generate an initial migration before seeding — see the **database** template readme (`supabase db diff -f initial_schema`, then `supabase db reset`).\n3. Configure model provider secrets:\n   - **Local:** copy `supabase/functions/.env.example` to `supabase/functions/.env` (auto-loaded by `supabase start`). Restart with `supabase stop && supabase start` after changes.\n   - **Hosted:** `supabase secrets set OPENAI_API_KEY=...` and optionally `OPENAI_MODEL=gpt-4o-mini`.\n4. Deploy Edge Functions: `supabase functions deploy agent-chat`.\n5. From your app, POST `{ message, sessionId? }` to `agent-chat` and read the streamed text response.\n\nFor production, review RLS policies in `agent.sql`, restrict service-role usage to server-side agent loops, and avoid storing long-lived third-party MCP secrets directly in `agent_mcp_servers.headers`.\n\n## MCP tool schemas\n\nThe AI SDK MCP client (`@ai-sdk/mcp`) discovers each server's tools and converts their JSON Schemas into model-ready tools automatically — no manual `jsonSchema()` wrapper needed. `agent-chat` only namespaces the tool keys as `<server>_<tool>` so multiple servers can't collide.\n\n## Debugging\n\n- Run `supabase functions serve agent-chat --no-verify-jwt` and watch the terminal for MCP load errors and model failures.\n- `agent-chat` streams error text to the client on model or tool failures instead of returning an empty 200 response.\n- If the model invents tool names, MCP discovery likely failed — check Edge Function logs for `failed to load MCP tools` or `no MCP tools loaded`.\n- Do not pass browser/public Supabase URLs into `mcpServers`; `agent-chat` resolves same-project function URLs via `SUPABASE_URL` itself.\n- User-scoped MCP tools require the caller JWT; `agent-chat` forwards `Authorization` automatically.",
       "meta": {
         "version": "1.0.0",
         "tags": [
           "ai",
           "agents",
-          "memory",
-          "sessions",
-          "pgvector",
-          "tools",
           "mcp",
           "streaming",
           "functions"
         ],
         "category": "AI",
+        "license": "MIT",
+        "repository": "https://github.com/SaxonF/templates/tree/main/templates/agent",
         "dependencies": {
           "required": [
             "database",
@@ -57,9 +55,9 @@
             "functions"
           ],
           "optional": [
+            "mcp-server",
             "ai-vector-search",
-            "ai-automatic-embeddings",
-            "mcp-server"
+            "ai-automatic-embeddings"
           ]
         }
       }
@@ -679,136 +677,20 @@
       "name": "headless-app",
       "type": "registry:item",
       "title": "Headless App",
-      "description": "User-scoped MCP server starter for authenticated agents with direct Postgres access through Supabase RLS",
+      "description": "A composition block: everything you need for a headless app — the MCP server framework, OAuth front-end, and RLS-scoped database tool, wired together",
       "categories": [
         "AI"
       ],
-      "registryDependencies": [],
+      "registryDependencies": [
+        "SaxonF/templates/mcp-server",
+        "SaxonF/templates/mcp-auth-ui",
+        "SaxonF/templates/mcp-sql"
+      ],
       "files": [
-        {
-          "path": "templates/headless-app/public/assets/app.js",
-          "type": "registry:file",
-          "target": "~/public/assets/app.js"
-        },
-        {
-          "path": "templates/headless-app/public/assets/styles.css",
-          "type": "registry:file",
-          "target": "~/public/assets/styles.css"
-        },
-        {
-          "path": "templates/headless-app/public/auth/index.html",
-          "type": "registry:file",
-          "target": "~/public/auth/index.html"
-        },
-        {
-          "path": "templates/headless-app/public/clients/index.html",
-          "type": "registry:file",
-          "target": "~/public/clients/index.html"
-        },
-        {
-          "path": "templates/headless-app/public/config.js",
-          "type": "registry:file",
-          "target": "~/public/config.js"
-        },
-        {
-          "path": "templates/headless-app/public/index.html",
-          "type": "registry:file",
-          "target": "~/public/index.html"
-        },
-        {
-          "path": "templates/headless-app/public/oauth/consent/index.html",
-          "type": "registry:file",
-          "target": "~/public/oauth/consent/index.html"
-        },
-        {
-          "path": "templates/headless-app/public/setup/index.html",
-          "type": "registry:file",
-          "target": "~/public/setup/index.html"
-        },
-        {
-          "path": "templates/headless-app/scripts/local-mcp-e2e.ts",
-          "type": "registry:file",
-          "target": "~/scripts/local-mcp-e2e.ts"
-        },
-        {
-          "path": "templates/headless-app/scripts/validate-mcp.ts",
-          "type": "registry:file",
-          "target": "~/scripts/validate-mcp.ts"
-        },
         {
           "path": "templates/headless-app/supabase/config.toml",
           "type": "registry:file",
           "target": "~/supabase/config.toml"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/adapters/supabase-rls.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/adapters/supabase-rls.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/catalog_test.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/catalog_test.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/catalog.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/catalog.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/database_integration_test.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/database_integration_test.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/deno.json",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/deno.json"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/errors.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/errors.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/identity.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/identity.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/mod.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/mod.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/policy_test.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/policy_test.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/policy.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/policy.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/README.md",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/README.md"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/runtime.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/runtime.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/supabase-rls_test.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/supabase-rls_test.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/_shared/agent-sql/types.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/_shared/agent-sql/types.ts"
         },
         {
           "path": "templates/headless-app/supabase/functions/.env.example",
@@ -816,84 +698,14 @@
           "target": "~/supabase/functions/.env.example"
         },
         {
-          "path": "templates/headless-app/supabase/functions/mcp-server/deno.json",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/deno.json"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/deno.lock",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/deno.lock"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/index.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/index.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/oauth.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/oauth.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/sql-runtime.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/sql-runtime.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/tools/catalog.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/tools/catalog.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/tools/edge-function.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/tools/edge-function.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/tools/execute-sql.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/tools/execute-sql.ts"
-        },
-        {
           "path": "templates/headless-app/supabase/functions/mcp-server/tools/index.ts",
           "type": "registry:file",
           "target": "~/supabase/functions/mcp-server/tools/index.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/tools/query-sql.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/tools/query-sql.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/functions/mcp-server/tools/result.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/tools/result.ts"
-        },
-        {
-          "path": "templates/headless-app/supabase/migrations/20260622004622_setup.sql",
-          "type": "registry:file",
-          "target": "~/supabase/migrations/20260622004622_setup.sql"
-        },
-        {
-          "path": "templates/headless-app/supabase/migrations/20260623012308_harden_mcp_sql_executor.sql",
-          "type": "registry:file",
-          "target": "~/supabase/migrations/20260623012308_harden_mcp_sql_executor.sql"
-        },
-        {
-          "path": "templates/headless-app/supabase/seed.sql",
-          "type": "registry:file",
-          "target": "~/supabase/seed.sql"
-        },
-        {
-          "path": "templates/headless-app/supabase/seed/demo_tasks.sql",
-          "type": "registry:file",
-          "target": "~/supabase/seed/demo_tasks.sql"
         }
       ],
-      "docs": "# User-scoped Postgres for agents\n\nThis template gives an authenticated agent direct PostgreSQL access while\nkeeping Supabase grants and Row Level Security (RLS) as the data-authorization\nboundary. The MCP server is only one transport over a reusable SQL runtime; the\nruntime itself has no dependency on MCP, HTTP, or Supabase Auth.\n\nThe direct connection means SQL tools continue to work when the Supabase Data\nAPI is disabled. It also means agent SQL is untrusted database input. The\nruntime therefore combines a least-privilege login role, PostgreSQL AST\nvalidation, transaction-local user identity, post-statement context\nverification, read/write separation, and resource limits. None of those controls\nis sufficient on its own.\n\n## Architecture\n\n```text\nMCP client\n  -> OAuth 2.1 protected resource\n  -> verified Supabase user + JWT claims\n  -> MCP tool adapter\n  -> agent-sql runtime\n       -> PostgreSQL AST policy\n       -> transaction and resource limits\n       -> Supabase RLS identity adapter\n       -> isolated mcp_sql_executor connection\n            SET LOCAL ROLE authenticated\n            SET LOCAL request.jwt.claims = <verified claims>\n            agent statement\n            verify role, claims, search_path and auth.uid()\n  -> PostgreSQL grants + RLS\n```\n\nThe boundaries are deliberately separate:\n\n- `supabase/functions/mcp-server/` owns OAuth, MCP transport, tool schemas, and\n  result formatting.\n- `supabase/functions/_shared/agent-sql/` owns SQL parsing, execution policy,\n  database transactions, bounded results, catalog access, and identity-adapter\n  interfaces.\n- `createSupabaseRlsAdapter` is the Supabase-specific bridge. Another\n  authenticated system can provide a different identity adapter without changing\n  the SQL policy or MCP layer.\n- The runtime is consumed as a self-contained library. It has its own\n  `deno.json` (name `@supabase-agent/agent-sql`, exporting `./mod.ts`) and the\n  MCP function imports it through the `@agent-sql` alias rather than a deep\n  relative path. To publish it standalone, run `deno publish` from\n  `supabase/functions/_shared/agent-sql/` and repoint that one alias at\n  `jsr:@supabase-agent/agent-sql`; no runtime code changes.\n- Project workflows that use secrets, external APIs, or retries belong behind\n  explicit typed Edge Function tools. The template does not expose a generic\n  function dispatcher.\n\nThere is intentionally no public raw database client or unchecked SQL method.\n\n## Included MCP tools\n\n- `query_sql`: one `SELECT`, executed in a read-only transaction.\n- `execute_sql`: one `INSERT`, `UPDATE`, `DELETE`, or `MERGE` statement.\n- `list_database_objects`: paginated, privilege-filtered relations and callable\n  functions.\n- `describe_table`: accessible columns, keys, comments, relation kind, and RLS\n  state.\n- `describe_function`: accessible overloads, arguments, return types,\n  volatility, language, and invoker/definer security.\n\nBoth SQL tools support normal PostgreSQL expressions, joins, subqueries, and\nCTEs within their mode. The parser rejects multiple statements, DDL,\ntransaction/session commands, procedural commands, `SELECT INTO`, read-side row\nlocks, `set_config`, and persistent advisory-lock functions. Query results,\nstatement size, statement duration, lock wait, and returned bytes are bounded.\n\n## Security contract\n\n### What is enforced\n\nEvery database operation:\n\n1. Validates an already-verified principal with a UUID `sub`, `authenticated`\n   role, and valid expiry.\n2. Parses SQL with a PostgreSQL parser and accepts only the statement roots\n   allowed by the selected mode.\n3. Opens a short transaction through the unprivileged `mcp_sql_executor` login.\n4. Attests that the login is `NOINHERIT`, is a member of exactly\n   `authenticated`, owns no database objects, and has no superuser,\n   role-management, replication, or RLS-bypass capability.\n5. Installs `authenticated`, verified JWT claims, timeouts, and a fixed search\n   path with transaction-local settings.\n6. Runs the statement.\n7. Verifies `session_user`, `current_user`, exact claims, search path, and\n   `auth.uid()` before commit. Any mismatch rolls the transaction back and\n   returns no rows.\n\nThe connection must never use `postgres`, `service_role`, an object owner, or\nany role that can become a privileged role. `RESET ROLE` is dangerous when the\nsession login is privileged; the isolated login makes reset fall back to an\nunprivileged role, while the parser rejects the statement before execution.\n\n### Trusted database code\n\nAST validation is a guardrail, not a PostgreSQL sandbox. A statement can invoke\nbehavior hidden behind a function, operator, cast, view, trigger, generated\nexpression, default, or RLS policy. In particular, a `SECURITY DEFINER` function\ncan intentionally exceed the caller's ordinary privileges.\n\nTreat executable database objects as trusted application code:\n\n- Do not grant `authenticated` or `PUBLIC` `CREATE` on any searched schema.\n- Revoke default `PUBLIC EXECUTE` from sensitive functions and grant functions\n  explicitly.\n- Audit every `SECURITY DEFINER`, network-capable, dynamic-SQL, or\n  configuration-changing function reachable by `authenticated`.\n- Give security-definer functions a fixed safe `search_path`, schema-qualify\n  objects, and perform their own authorization.\n- Keep extension schemas and internal Supabase schemas out of the agent search\n  path and catalog.\n- Treat triggers and RLS policies as part of the same trusted-code review.\n\nThe runtime rechecks identity after a statement, so a hidden function that\nleaves claims or role changed causes a rollback. It cannot prove that a function\ntemporarily changed identity and restored it, or undo non-transactional external\neffects. That is why database-code review remains a required boundary.\n\n### Pooling model\n\nThe runtime is compatible with Supavisor transaction mode:\n\n- prepared statements are disabled;\n- each operation owns one transaction;\n- request context is transaction-local;\n- query mode uses `BEGIN READ ONLY`;\n- no transaction or connection state spans MCP calls.\n\nFor atomic database work, use one statement or a data-modifying CTE in\n`execute_sql`. For payment, email, third-party API, secret-bearing, or retryable\nmulti-step work, expose a typed Edge Function tool.\n\n## Run locally\n\nPrerequisites: Docker, Supabase CLI 2.90.0 or later, Node.js 20 or later, and\nPython 3 (or another static file server).\n\n1. Start Supabase and apply migrations:\n\n   ```bash\n   supabase start\n   supabase db reset\n   ```\n\n2. Copy the local publishable key from `supabase status -o env` into\n   `public/config.js`:\n\n   ```js\n   export const SUPABASE_URL = \"http://127.0.0.1:54321\";\n   export const SUPABASE_PUBLISHABLE_KEY = \"your-local-publishable-key\";\n   export const MCP_SERVER_NAME = \"your-app\";\n   export const MCP_SERVER_DESCRIPTION =\n     \"MCP access to your app database for the signed-in user.\";\n   ```\n\n3. Configure the function:\n\n   ```bash\n   cp supabase/functions/.env.example supabase/functions/.env\n   ```\n\n   No edit is required: `supabase db reset` runs `supabase/seed.sql`, which sets\n   the isolated login's local password to match the committed `MCP_DB_URL`. The\n   seed is local-only and never reaches a hosted project.\n\n4. Serve the function and authorization UI in separate terminals:\n\n   ```bash\n   supabase functions serve mcp-server --env-file supabase/functions/.env\n   ```\n\n   ```bash\n   python3 -m http.server 3000 --directory public\n   ```\n\n5. Connect an OAuth-capable MCP client:\n\n   ```bash\n   codex mcp add local-your-app \\\n     --url http://127.0.0.1:54321/functions/v1/mcp-server\n   codex mcp login local-your-app\n   ```\n\nUse `127.0.0.1` consistently. OAuth issuer, resource, audience, and redirect\ncomparisons are exact.\n\n## Grant application data\n\nThe template grants no application-table privileges by default. Grant only the\noperations the agent needs and enforce ownership in RLS:\n\n```sql\ngrant usage on schema public to authenticated;\ngrant select, insert, update, delete on table public.todos to authenticated;\n\nalter table public.todos enable row level security;\n\ncreate policy \"users access their own todos\"\non public.todos\nfor all\nto authenticated\nusing ((select auth.uid()) = user_id)\nwith check ((select auth.uid()) = user_id);\n```\n\nGrant only `SELECT` for a read-only application. Table owners normally bypass\nRLS, which is another reason the executor must own nothing. Use\n`FORCE ROW LEVEL SECURITY` as defense in depth where owner access is not\nrequired, but do not substitute it for an isolated login.\n\n## Runtime configuration\n\nThe MCP adapter reads:\n\n| Variable                       | Purpose                                                          |   Default |\n| ------------------------------ | ---------------------------------------------------------------- | --------: |\n| `MCP_DB_URL`                   | Required direct or transaction-pooler URL for `mcp_sql_executor` |      none |\n| `MCP_SERVER_NAME`              | Short project-specific MCP server/client name                    | `supabase-agent` |\n| `MCP_SERVER_DESCRIPTION`       | User-facing connector text and prefix for MCP instructions       | see code |\n| `MCP_SQL_MAX_QUERY_BYTES`      | Maximum UTF-8 SQL size                                           |   `65536` |\n| `MCP_SQL_MAX_ROWS`             | Maximum returned rows                                            |    `1000` |\n| `MCP_SQL_MAX_RESULT_BYTES`     | Approximate JSON result-byte cap                                 | `1000000` |\n| `MCP_SQL_STATEMENT_TIMEOUT_MS` | Per-statement timeout                                            |   `15000` |\n| `MCP_SQL_LOCK_TIMEOUT_MS`      | Lock-wait timeout                                                |    `2000` |\n\nFor hosted Supabase, use the transaction pooler and set the secret out of band:\n\n```bash\nsupabase secrets set \\\n  MCP_DB_URL=\"postgresql://mcp_sql_executor.PROJECT_REF:STRONG_PASSWORD@REGION.pooler.supabase.com:6543/postgres\" \\\n  MCP_SERVER_NAME=\"your-app\" \\\n  MCP_SERVER_DESCRIPTION=\"MCP access to your app database for the signed-in user.\"\n```\n\nThe runtime fails closed when this variable is absent or when role attestation\nfails. This connection path does not use PostgREST or the Data API.\n\n## Deploy\n\n1. Host `public/` at an HTTPS origin, update `public/config.js`, and configure\n   its root as the Auth Site URL.\n2. In Supabase Auth, enable the OAuth server, use `/oauth/consent/` as its\n   authorization path, and enable dynamic client registration.\n3. Use an asymmetric JWT signing key.\n4. Apply migrations and deploy:\n\n   ```bash\n   supabase link --project-ref PROJECT_REF\n   supabase db push\n   supabase config push\n   supabase functions deploy mcp-server\n   ```\n\n   `supabase config push` enables the Custom Access Token hook\n   `private.mcp_custom_access_token_hook` from `config.toml`. It adds the\n   canonical MCP resource to OAuth-token audiences; ordinary Supabase sessions\n   are not changed. No dashboard toggle is required.\n\n5. Provision the isolated executor — the only secret to set by hand. Set the\n   role password once, then store the pooler connection string as a secret:\n\n   ```bash\n   # as the postgres/admin role:\n   #   alter role mcp_sql_executor with password '<STRONG_PASSWORD>';\n   supabase secrets set \\\n     MCP_DB_URL=\"postgresql://mcp_sql_executor.PROJECT_REF:STRONG_PASSWORD@REGION.pooler.supabase.com:6543/postgres\"\n   ```\n\n`verify_jwt` is deliberately disabled for the Edge Function so unauthenticated\nclients can receive OAuth discovery metadata. The function itself verifies the\nbearer token signature, issuer, OAuth `client_id`, resource audience,\nauthenticated role, and live Auth session before creating tool context.\n\nIf a custom domain is used, configure `MCP_RESOURCE_URL` and `MCP_AUTH_ISSUER`\nso the resource, issuer, access-token hook, and client configuration use the\nsame canonical origins.\n\n## Add project tools\n\nAdd explicit tools in `supabase/functions/mcp-server/tools/index.ts`. Database\ntools should call the shared runtime, not construct a second database\nconnection. External workflows should map one typed MCP tool to one Edge\nFunction through `invokeEdgeFunction`; do not expose a caller-selected function\nname or caller-controlled headers.\n\nThe helper forwards the authenticated user's token. The target function must\nstill authenticate and authorize the request, ideally by using a user-scoped\nSupabase client and RLS.\n\n## Verification checklist\n\nBefore deploying a schema or grant change:\n\n- Sign in as two users and seed one owned row for each.\n- Confirm `query_sql` returns only the caller's row and `auth.uid()` matches the\n  OAuth subject.\n- Confirm `execute_sql` cannot update or delete the other user's row.\n- Confirm an allowed mutation with `RETURNING` succeeds for the caller's row.\n- Confirm `set_config`, `SET ROLE`, DDL, multiple statements, data-modifying\n  query CTEs, and oversized/slow queries fail.\n- Confirm catalog tools omit inaccessible objects.\n- Confirm the executor attestation fails after adding any role membership,\n  ownership, or privileged flag.\n- Revoke the OAuth grant and confirm the next MCP request requires\n  authentication.\n\nRun the local static tests with:\n\n```bash\ndeno test \\\n  supabase/functions/_shared/agent-sql/policy_test.ts \\\n  supabase/functions/_shared/agent-sql/supabase-rls_test.ts\n\n# Type-check through the function's deno.json so the @agent-sql import resolves:\ndeno check --config supabase/functions/mcp-server/deno.json \\\n  supabase/functions/mcp-server/index.ts\n```\n\nWith local Supabase and `mcp-server` running, execute the complete two-user\nOAuth/MCP/RLS test (use values from `supabase status -o env`):\n\n```bash\nSUPABASE_PUBLISHABLE_KEY='local-publishable-key' \\\nSUPABASE_SERVICE_ROLE_KEY='local-service-role-key' \\\ndeno run --allow-env --allow-net \\\n  scripts/local-mcp-e2e.ts\n```\n\nThis test uses the service-role key only to create and remove isolated local\ntest users. That key is never sent to MCP or installed as database request\ncontext. The script obtains a separate PKCE OAuth access token for each user,\ncreates a temporary RLS fixture through the local admin connection, validates\nMCP reads and mutations, rejects `set_config`, and cleans up in `finally`.\n\n## References\n\n- [Supabase MCP authentication](https://supabase.com/docs/guides/auth/oauth-server/mcp-authentication)\n- [Supabase Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)\n- [PostgreSQL role membership](https://www.postgresql.org/docs/current/role-membership.html)\n- [PostgreSQL row security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)\n- [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)",
+      "docs": "# Headless App\n\nA **composition block** — not a standalone template. It installs everything you\nneed to stand up a headless app where an authenticated agent gets RLS-scoped\nPostgres access over MCP:\n\n| Dependency | What it adds |\n| --- | --- |\n| [mcp-server](../mcp-server) | The MCP server framework: Streamable HTTP transport, dual OAuth 2.1 + first-party JWT auth, tool registry. |\n| [mcp-auth-ui](../mcp-auth-ui) | The OAuth front-end: sign-in, consent, client management, setup wizard. |\n| [mcp-sql](../mcp-sql) | RLS-scoped database tools (`query_sql`, `execute_sql`, schema introspection) via the `agent-sql` runtime + a dedicated executor role. |\n\nBecause shadcn copies whole files (no merge), this block also **owns the few\nfiles that must be merged across those templates**:\n\n- `supabase/config.toml` — the framework's auth/runtime config **plus**\n  `[db.seed]` for the executor password and demo data.\n- `supabase/functions/.env.example` — the merged env (`MCP_SERVER_*`,\n  `MCP_DB_URL`, `MCP_SQL_*`).\n- `supabase/functions/mcp-server/tools/index.ts` — the **canonical tool\n  aggregator**. Edit this file to add more tool templates.\n\nThe dependencies install first, so these merged files overwrite the\nper-template versions last — which is exactly what you want.\n\n## Install\n\n```bash\nnpx shadcn@latest add SaxonF/templates/headless-app\n```\n\nThis resolves and installs `mcp-server` → `mcp-auth-ui` → `mcp-sql`, then lands\nthe merged files above.\n\n> Want a chat agent too? The [agent](../agent) template is intentionally\n> **not** part of this block (it is standalone). Install it separately\n> (`npx shadcn@latest add SaxonF/templates/agent`); it connects to this MCP\n> server automatically and forwards the user's JWT to the first-party auth path.\n\n## Run locally\n\nPrerequisites: Docker, Supabase CLI 2.90.0+, and Python 3 (or any static file\nserver).\n\n1. Start Supabase and apply migrations:\n\n   ```bash\n   supabase start\n   supabase db reset\n   ```\n\n2. Copy the local publishable key from `supabase status -o env` into\n   `public/config.js`.\n\n3. Configure the function (no edit needed locally — the seed sets the executor\n   password to match the committed `MCP_DB_URL`):\n\n   ```bash\n   cp supabase/functions/.env.example supabase/functions/.env\n   ```\n\n4. Serve the function and the OAuth UI in separate terminals:\n\n   ```bash\n   supabase functions serve mcp-server --env-file supabase/functions/.env\n   ```\n\n   ```bash\n   python3 -m http.server 3000 --directory public\n   ```\n\n5. Connect an OAuth-capable MCP client at\n   `http://127.0.0.1:54321/functions/v1/mcp-server`, or point the\n   [agent](../agent) at the same project.\n\n## Grant the agent access to your data\n\nThe block grants no application-table privileges by default. For each table the\nagent should reach, grant `authenticated` and constrain rows with RLS:\n\n```sql\ngrant usage on schema public to authenticated;\ngrant select, insert, update, delete on table public.todos to authenticated;\nalter table public.todos enable row level security;\ncreate policy \"users access their own todos\"\n  on public.todos for all to authenticated\n  using ((select auth.uid()) = user_id)\n  with check ((select auth.uid()) = user_id);\n```\n\n## Add another tool template\n\n1. Install it: `npx shadcn@latest add SaxonF/templates/<tool>`.\n2. Add its `register*` calls to `supabase/functions/mcp-server/tools/index.ts`\n   (this block owns that aggregator).\n\nSee the [mcp-server composition contract](../mcp-server/readme.md#composition-contract)\nand the [mcp-sql security contract](../mcp-sql/readme.md#how-it-stays-safe) for\nthe details each layer enforces.\n\n## Deploy\n\n```bash\nsupabase link --project-ref PROJECT_REF\nsupabase db push\nsupabase config push      # enables the access-token hook + OAuth server\nsupabase functions deploy mcp-server\n```\n\nThen provision the executor login (the one secret to set by hand):\n\n```bash\n# as the postgres/admin role: alter role mcp_sql_executor with password '<STRONG_PASSWORD>';\nsupabase secrets set \\\n  MCP_DB_URL=\"postgresql://mcp_sql_executor.PROJECT_REF:STRONG_PASSWORD@REGION.pooler.supabase.com:6543/postgres\"\n```\n\nHost `public/` at an HTTPS origin and set it as the Auth Site URL. For custom\ndomains, set `MCP_RESOURCE_URL` and `MCP_AUTH_ISSUER`.",
       "meta": {
-        "version": "1.0.0",
+        "version": "2.0.0",
         "tags": [
           "ai",
           "agents",
@@ -901,36 +713,126 @@
           "postgres",
           "rls",
           "oauth",
-          "functions"
+          "block"
         ],
         "category": "AI",
         "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/headless-app"
+        "repository": "https://github.com/SaxonF/templates/tree/main/templates/headless-app",
+        "dependencies": {
+          "required": [
+            "mcp-server",
+            "mcp-auth-ui",
+            "mcp-sql"
+          ]
+        }
+      }
+    },
+    {
+      "name": "mcp-auth-ui",
+      "type": "registry:item",
+      "title": "MCP Auth UI",
+      "description": "Vanilla front-end for the MCP server's OAuth flow: sign-in, consent, dynamic client management, and a setup wizard served from Supabase Storage / public",
+      "categories": [
+        "AI"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/mcp-server"
+      ],
+      "files": [
+        {
+          "path": "templates/mcp-auth-ui/public/assets/app.js",
+          "type": "registry:file",
+          "target": "~/public/assets/app.js"
+        },
+        {
+          "path": "templates/mcp-auth-ui/public/assets/styles.css",
+          "type": "registry:file",
+          "target": "~/public/assets/styles.css"
+        },
+        {
+          "path": "templates/mcp-auth-ui/public/auth/index.html",
+          "type": "registry:file",
+          "target": "~/public/auth/index.html"
+        },
+        {
+          "path": "templates/mcp-auth-ui/public/clients/index.html",
+          "type": "registry:file",
+          "target": "~/public/clients/index.html"
+        },
+        {
+          "path": "templates/mcp-auth-ui/public/config.js",
+          "type": "registry:file",
+          "target": "~/public/config.js"
+        },
+        {
+          "path": "templates/mcp-auth-ui/public/index.html",
+          "type": "registry:file",
+          "target": "~/public/index.html"
+        },
+        {
+          "path": "templates/mcp-auth-ui/public/oauth/consent/index.html",
+          "type": "registry:file",
+          "target": "~/public/oauth/consent/index.html"
+        },
+        {
+          "path": "templates/mcp-auth-ui/public/setup/index.html",
+          "type": "registry:file",
+          "target": "~/public/setup/index.html"
+        }
+      ],
+      "docs": "# MCP Auth UI\n\nThe vanilla front-end for the [mcp-server](../mcp-server) OAuth flow. These are\nstatic pages served from `public/` — no build step, no framework.\n\n## Pages\n\n| Path | Purpose |\n| --- | --- |\n| `public/setup/` | First-run setup wizard. |\n| `public/auth/` | Sign-in. |\n| `public/oauth/consent/` | OAuth consent screen. Referenced by `config.toml` → `[auth.oauth_server] authorization_url_path = \"/oauth/consent/\"`. |\n| `public/clients/` | Manage dynamically-registered OAuth clients. |\n| `public/config.js` | Front-end config: `SUPABASE_URL`, publishable key, `MCP_SERVER_URL/NAME/DESCRIPTION`. Edit for your project. |\n\n## Requirements\n\nThis template depends on **mcp-server**, which provides the auth configuration\nthese screens rely on:\n\n- `[auth.oauth_server]` enabled with `authorization_url_path = \"/oauth/consent/\"`\n- The custom access-token hook (audience binding)\n- `auth.additional_redirect_urls` for your front-end origin\n\nWhen installed via the [headless-app](../headless-app) block, that config is\nalready merged. Standalone, ensure `mcp-server`'s `config.toml` is in place and\nupdate `public/config.js` with your project URL and publishable key.\n\n## Dependencies\n\nRequires [mcp-server](../mcp-server). Pairs with [mcp-sql](../mcp-sql) and the\n[agent](../agent); all three are bundled by the [headless-app](../headless-app)\nblock.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "ai",
+          "mcp",
+          "oauth",
+          "frontend"
+        ],
+        "category": "AI",
+        "license": "MIT",
+        "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-auth-ui",
+        "dependencies": {
+          "required": [
+            "mcp-server"
+          ]
+        }
       }
     },
     {
       "name": "mcp-server",
       "type": "registry:item",
       "title": "MCP Server",
-      "description": "Edge Function MCP server with a tool registry for exposing project capabilities to MCP clients",
+      "description": "Composable MCP server framework as a Supabase Edge Function: official Streamable HTTP transport, dual OAuth 2.1 + first-party JWT auth, and a tool registry that other templates extend",
       "categories": [
         "AI"
       ],
-      "registryDependencies": [
-        "SaxonF/templates/database",
-        "SaxonF/templates/api",
-        "SaxonF/templates/functions"
-      ],
+      "registryDependencies": [],
       "files": [
+        {
+          "path": "templates/mcp-server/supabase/config.toml",
+          "type": "registry:file",
+          "target": "~/supabase/config.toml"
+        },
+        {
+          "path": "templates/mcp-server/supabase/functions/.env.example",
+          "type": "registry:file",
+          "target": "~/supabase/functions/.env.example"
+        },
+        {
+          "path": "templates/mcp-server/supabase/functions/mcp-server/auth.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/auth.ts"
+        },
+        {
+          "path": "templates/mcp-server/supabase/functions/mcp-server/deno.json",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/deno.json"
+        },
         {
           "path": "templates/mcp-server/supabase/functions/mcp-server/index.ts",
           "type": "registry:file",
           "target": "~/supabase/functions/mcp-server/index.ts"
-        },
-        {
-          "path": "templates/mcp-server/supabase/functions/mcp-server/registry.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/registry.ts"
         },
         {
           "path": "templates/mcp-server/supabase/functions/mcp-server/tools/echo.ts",
@@ -943,31 +845,208 @@
           "target": "~/supabase/functions/mcp-server/tools/index.ts"
         },
         {
-          "path": "templates/mcp-server/supabase/functions/mcp-server/tools/list-tables.ts",
+          "path": "templates/mcp-server/supabase/functions/mcp-server/tools/types.ts",
           "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/tools/list-tables.ts"
+          "target": "~/supabase/functions/mcp-server/tools/types.ts"
         },
         {
-          "path": "templates/mcp-server/supabase/functions/mcp-server/user-client.ts",
+          "path": "templates/mcp-server/supabase/functions/mcp-server/tools/whoami.ts",
           "type": "registry:file",
-          "target": "~/supabase/functions/mcp-server/user-client.ts"
+          "target": "~/supabase/functions/mcp-server/tools/whoami.ts"
+        },
+        {
+          "path": "templates/mcp-server/supabase/migrations/20260622004622_mcp_access_token_hook.sql",
+          "type": "registry:file",
+          "target": "~/supabase/migrations/20260622004622_mcp_access_token_hook.sql"
         }
       ],
-      "docs": "# MCP server template\n\nScaffolds a Model Context Protocol server as a Supabase Edge Function. The function speaks JSON-RPC over HTTP and exposes tools that are declared through a small registry.\n\nThis composes with the **Agent** template: when the mcp-server template is installed, `agent-chat` registers it automatically at `${SUPABASE_URL}/functions/v1/mcp-server` and forwards the caller's JWT. No client-side MCP configuration is required. You can also register additional servers in `public.agent_mcp_servers`.\n\n## Includes\n\n- `supabase/functions/mcp-server/index.ts` — JSON-RPC entrypoint handling `initialize`, `tools/list`, and `tools/call`\n- `supabase/functions/mcp-server/registry.ts` — `registerTool` API and tool typings\n- `supabase/functions/mcp-server/user-client.ts` — service-role and user-scoped Supabase clients\n- `supabase/functions/mcp-server/tools/` — one file per tool, imported from `tools/index.ts`\n\n## User-scoped tools (RLS)\n\n`ToolContext` provides two clients:\n\n| Client | Use |\n| ------ | --- |\n| `supabase` | Service role — bypasses RLS. Use for schema introspection (`list_tables`) or admin-only operations. |\n| `userSupabase` | Created from the request `Authorization` header. Use for queries against RLS-protected tables. |\n\n`agent-chat` forwards the user's JWT when calling this server. Tools that read or write tenant data should use `userSupabase` and return a clear error when it is missing:\n\n```ts\nasync handler(args, { userSupabase }) {\n  if (!userSupabase) {\n    throw new Error('Authorization header with user JWT is required')\n  }\n\n  const { data, error } = await userSupabase.from('notes').select('*')\n  if (error) throw new Error(error.message)\n  return data\n}\n```\n\n## Multi-tenant apps\n\nUse this section when you compose **mcp-server** with **multi-tenant-rbac** (or any schema where tenant-owned rows include `organization_id`).\n\nMCP clients (Cursor, Claude Desktop, `agent-chat`) receive the caller's JWT but do not know which organization is active. Do not ask end users to paste organization UUIDs into chat. Instead, register **discovery tools** the agent can call before tenant-scoped operations.\n\nRecommended discovery tools:\n\n- `list_organizations` — returns organizations the caller belongs to (id, name, slug, role)\n- `get_organization` (optional) — resolve an organization by slug or name when the user says \"Acme\"\n\nTenant CRUD tools (`list_notes`, `create_project`, and so on) may accept `organization_id` as a tool argument, but the **agent** should fill it in after calling `list_organizations`, not the human.\n\n```mermaid\nsequenceDiagram\n  participant User\n  participant Agent\n  participant MCP\n\n  User->>Agent: List my notes\n  Agent->>MCP: list_organizations\n  MCP-->>Agent: orgs with ids\n  Agent->>MCP: list_notes(organization_id)\n  MCP-->>Agent: notes\n  Agent-->>User: Here are your notes\n```\n\n### Example `list_organizations` tool\n\nCreate `tools/list-organizations.ts`, import it from `tools/index.ts`, and register:\n\n```ts\nregisterTool({\n  name: 'list_organizations',\n  description:\n    'List organizations the current user belongs to. Call this before other tenant tools when organization context is unknown.',\n  inputSchema: { type: 'object', properties: {}, additionalProperties: false },\n  async handler(_args, { userSupabase }) {\n    if (!userSupabase) {\n      throw new Error('Authorization header with user JWT is required')\n    }\n\n    const { data, error } = await userSupabase\n      .from('organization_members')\n      .select('role, organizations(id, name, slug)')\n\n    if (error) throw new Error(error.message)\n    return data\n  },\n})\n```\n\nThis example assumes the **multi-tenant-rbac** schema (`organization_members` joined to `organizations`). See that template's readme for RLS and permission patterns.\n\n### Tool design tips\n\n- Prefer **RLS + `userSupabase`** for reads so rows are scoped by membership. Pass `organization_id` only when inserting or when a query must target one organization.\n- Return human-friendly fields (`name`, `slug`) from discovery tools so the agent can match \"my Acme workspace\" without the user knowing UUIDs.\n- If the user belongs to exactly one organization, the agent can often proceed without asking — but still expose `list_organizations` for reliability.\n\n### Connecting from Cursor\n\nPoint your MCP client at the Edge Function URL and pass the user's JWT in headers. No organization id is required in MCP config when discovery tools are present.\n\n```json\n{\n  \"mcpServers\": {\n    \"project\": {\n      \"url\": \"https://<ref>.supabase.co/functions/v1/mcp-server\",\n      \"headers\": {\n        \"Authorization\": \"Bearer <user-access-token>\"\n      }\n    }\n  }\n}\n```\n\nFor local development, use `http://127.0.0.1:<api-port>/functions/v1/mcp-server` from `supabase status`. Refresh the access token when it expires, same as any JWT-backed MCP connection.\n\n## Adding a tool\n\n1. Create a new file under `supabase/functions/mcp-server/tools/`, e.g. `tools/my-tool.ts`.\n2. Call `registerTool({ name, description, inputSchema, handler })` at module scope.\n3. Import the new file from `tools/index.ts` so it self-registers at boot.\n\n## Local endpoint\n\nAfter `supabase start`, the MCP server is available at:\n\n```text\nhttp://127.0.0.1:<api-port>/functions/v1/mcp-server\n```\n\nRun `supabase status` for the API port and Mailpit URL for your project.\n\n## Dependencies\n\nRequires **database**, **api**, and **functions**.",
+      "docs": "# MCP Server\n\nA composable **Model Context Protocol** server, deployed as a single Supabase\nEdge Function. This is the **framework** other templates build on: it owns the\ntransport, connection handling, authentication, and the tool registry — and\nnothing else. Tools come from tool templates (e.g. [mcp-sql](../mcp-sql)) or\nyour own files.\n\n## What it does\n\n- **Official MCP transport.** Uses `@modelcontextprotocol/sdk` with the\n  `WebStandardStreamableHTTPServerTransport` (stateless, JSON responses), so any\n  spec-compliant MCP client — Claude Desktop, MCP Inspector, the AI SDK MCP\n  client — can connect.\n- **Dual-mode auth** ([auth.ts](supabase/functions/mcp-server/auth.ts)):\n  1. **OAuth 2.1 protected resource** — for external clients. Tokens carry a\n     `client_id` and must be audience-bound to this resource (the resource URL\n     appears in `aud`, added by the access-token hook migration). This stops a\n     token minted elsewhere from being replayed here.\n  2. **First-party Supabase JWT** — for in-project callers such as the\n     [agent](../agent) forwarding the user's session token. No `client_id`, no\n     resource-audience binding. Set `MCP_ALLOW_FIRST_PARTY_JWT=false` to require\n     OAuth only.\n\n  Both modes build a user-scoped Supabase client and confirm the live session,\n  so revoked grants and deleted sessions take effect immediately.\n- **No UI.** The OAuth consent / sign-in / setup screens live in the\n  [mcp-auth-ui](../mcp-auth-ui) template.\n\n## Files\n\n| File | Role |\n| --- | --- |\n| `supabase/functions/mcp-server/index.ts` | Transport + request lifecycle. Builds the base `ToolContext` and calls `registerTools`. |\n| `supabase/functions/mcp-server/auth.ts` | Dual-mode auth + OAuth protected-resource metadata + CORS. |\n| `supabase/functions/mcp-server/tools/types.ts` | The base `ToolContext` type. Framework-owned; never overwritten. |\n| `supabase/functions/mcp-server/tools/index.ts` | The tool aggregator — **the one extension point**. |\n| `supabase/functions/mcp-server/tools/{echo,whoami}.ts` | Example tools. |\n| `supabase/migrations/…_mcp_access_token_hook.sql` | Adds the resource URL to OAuth token audiences. |\n| `supabase/config.toml` | Auth (OAuth server + hook), edge runtime, function config. |\n\n## Composition contract\n\nThis is how tool templates extend the server without colliding under shadcn's\nwhole-file copy:\n\n- **Tool templates are purely additive.** They drop tool files under\n  `supabase/functions/mcp-server/tools/`, add their own timestamped migrations,\n  and import any shared library with a **relative path**\n  (`../../_shared/<lib>/mod.ts`). They **never** edit `index.ts`, `auth.ts`,\n  `types.ts`, or `deno.json`.\n- **Tools get their own dependencies from module singletons**, not from the base\n  `ToolContext`, so the framework never references a specific tool.\n- **`tools/index.ts` is the only contested file.** It is owned by the leaf: a\n  single tool template ships its own version; when several are composed, the\n  [headless-app](../headless-app) block ships the final aggregated version.\n\n## Adding a tool\n\n1. Create `supabase/functions/mcp-server/tools/my-tool.ts` exporting\n   `registerMyTool(server, context)` and calling `server.registerTool(...)`.\n2. Call it from `registerTools` in `tools/index.ts`.\n\n```ts\n// tools/my-tool.ts\nimport type { McpServer } from \"npm:@modelcontextprotocol/sdk@1.29.0/server/mcp.js\";\nimport { z } from \"npm:zod@4.4.3\";\nimport type { ToolContext } from \"./types.ts\";\n\nexport function registerMyTool(server: McpServer, { supabase }: ToolContext): void {\n  server.registerTool(\n    \"my_tool\",\n    { description: \"…\", inputSchema: { name: z.string() } },\n    async ({ name }) => {\n      const { data, error } = await supabase.from(\"things\").select(\"*\").eq(\"name\", name);\n      if (error) return { isError: true, content: [{ type: \"text\", text: error.message }] };\n      return { content: [{ type: \"text\", text: JSON.stringify(data) }] };\n    },\n  );\n}\n```\n\n## Configuration\n\n| Env var | Default | Purpose |\n| --- | --- | --- |\n| `MCP_SERVER_NAME` | `supabase-agent` | Display name shown in MCP clients. |\n| `MCP_SERVER_DESCRIPTION` | _(generic)_ | Server description / instructions. |\n| `MCP_ALLOW_FIRST_PARTY_JWT` | `true` | Accept first-party Supabase JWTs in addition to OAuth tokens. |\n| `MCP_RESOURCE_URL` | _(derived)_ | Override the canonical resource URL (custom domains). |\n| `MCP_AUTH_ISSUER` | _(derived)_ | Override the canonical auth issuer (custom domains). |\n\n## Local endpoint\n\nAfter `supabase start`:\n\n```text\nhttp://127.0.0.1:54321/functions/v1/mcp-server\n```\n\n## Dependencies\n\nRequires Supabase **database**, **auth**, and **functions**. Pairs with\n[mcp-auth-ui](../mcp-auth-ui) (OAuth UI), [mcp-sql](../mcp-sql) (database tool),\nand the [agent](../agent). The [headless-app](../headless-app) block bundles them.",
       "meta": {
         "version": "1.0.0",
         "tags": [
-          "mcp",
           "ai",
-          "tools",
+          "agents",
+          "mcp",
+          "oauth",
           "functions"
         ],
         "category": "AI",
+        "license": "MIT",
+        "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-server",
+        "dependencies": {
+          "optional": [
+            "mcp-auth-ui",
+            "mcp-sql",
+            "agent"
+          ]
+        }
+      }
+    },
+    {
+      "name": "mcp-sql",
+      "type": "registry:item",
+      "title": "MCP SQL",
+      "description": "MCP tool template that gives a connected agent RLS-scoped Postgres access as the signed-in user, via a dedicated unprivileged executor role, a SQL-AST policy, and transaction-local identity",
+      "categories": [
+        "AI"
+      ],
+      "registryDependencies": [
+        "SaxonF/templates/mcp-server"
+      ],
+      "files": [
+        {
+          "path": "templates/mcp-sql/scripts/local-mcp-e2e.ts",
+          "type": "registry:file",
+          "target": "~/scripts/local-mcp-e2e.ts"
+        },
+        {
+          "path": "templates/mcp-sql/scripts/validate-mcp.ts",
+          "type": "registry:file",
+          "target": "~/scripts/validate-mcp.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/adapters/supabase-rls.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/adapters/supabase-rls.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/catalog_test.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/catalog_test.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/catalog.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/catalog.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/database_integration_test.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/database_integration_test.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/deno.json",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/deno.json"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/errors.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/errors.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/identity.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/identity.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/mod.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/mod.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/policy_test.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/policy_test.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/policy.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/policy.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/README.md",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/README.md"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/runtime.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/runtime.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/supabase-rls_test.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/supabase-rls_test.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/types.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/types.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/mcp-server/sql-runtime.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/sql-runtime.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/mcp-server/tools/catalog.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/catalog.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/mcp-server/tools/edge-function.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/edge-function.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/mcp-server/tools/execute-sql.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/execute-sql.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/mcp-server/tools/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/index.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/mcp-server/tools/query-sql.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/query-sql.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/mcp-server/tools/result.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/mcp-server/tools/result.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/migrations/20260622004623_mcp_sql_executor.sql",
+          "type": "registry:file",
+          "target": "~/supabase/migrations/20260622004623_mcp_sql_executor.sql"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/migrations/20260623012308_harden_mcp_sql_executor.sql",
+          "type": "registry:file",
+          "target": "~/supabase/migrations/20260623012308_harden_mcp_sql_executor.sql"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/seed/demo_tasks.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed/demo_tasks.sql"
+        }
+      ],
+      "docs": "# MCP SQL\n\nA **tool template** for [mcp-server](../mcp-server). It gives whatever agent\nconnects to the MCP server **RLS-scoped Postgres access as the signed-in user** —\nwithout ever handing out a privileged database client.\n\nIt adds five tools: `query_sql`, `execute_sql`, `list_database_objects`,\n`describe_table`, `describe_function`.\n\n## How it stays safe\n\nAccess is bounded by several independent layers (no single one is the boundary):\n\n1. **Dedicated login role** (`mcp_sql_executor`) — unprivileged, `NOINHERIT`,\n   member of `authenticated` only, owns nothing. There is nothing privileged for\n   untrusted SQL to escape into. Created and validated by the migrations.\n2. **SQL-AST policy** ([`_shared/agent-sql/policy.ts`](supabase/functions/_shared/agent-sql/policy.ts))\n   — parses each statement with the real Postgres grammar and accepts only\n   `SELECT` (query) or `INSERT/UPDATE/DELETE/MERGE` (mutation); rejects DDL,\n   procedural commands, `SELECT INTO`, row-locking, and context-mutating\n   functions.\n3. **Transaction-local identity** — each statement runs inside one transaction\n   that sets `role`, `request.jwt.claims`, and `search_path` with `SET LOCAL`,\n   then attests and re-verifies the context before commit.\n4. **Resource limits** — statement size, row count, result bytes, statement and\n   lock timeouts (all configurable).\n5. **Supabase RLS** — the final boundary; agent SQL inherits exactly the\n   `authenticated` grants and policies you define.\n\nSee [`_shared/agent-sql/README.md`](supabase/functions/_shared/agent-sql/README.md)\nfor the full security contract.\n\n## Composition\n\nThis template is **purely additive** to the mcp-server function (the\n[composition contract](../mcp-server/readme.md#composition-contract)):\n\n- It drops tool files under `supabase/functions/mcp-server/tools/`, the\n  `sql-runtime.ts` singleton, and the `_shared/agent-sql/` library.\n- The library is imported with **relative paths**, so no framework files\n  (`index.ts`, `auth.ts`, `deno.json`) are touched.\n- It ships its own `tools/index.ts` aggregator (framework examples + SQL tools)\n  for the standalone `mcp-server + mcp-sql` install. The\n  [headless-app](../headless-app) block ships the final aggregator when more\n  tools are composed.\n\n## Required configuration\n\nNot shipped here — the [headless-app](../headless-app) block provides the merged\nversions. Standalone, add these to your project:\n\n**`supabase/config.toml`** — enable the demo/executor seed:\n\n```toml\n[db.seed]\nenabled = true\nsql_paths = [\"./seed.sql\", \"./seed/*.sql\"]\n```\n\n**`supabase/functions/.env`** — the executor connection string and optional limits:\n\n```bash\n# LOCAL works as-is after `supabase db reset` (seed.sql sets the matching password).\nMCP_DB_URL=postgresql://mcp_sql_executor:local-dev-password@db:5432/postgres\n\n# Optional limits (safe defaults in code):\n# MCP_SQL_MAX_ROWS=1000\n# MCP_SQL_STATEMENT_TIMEOUT_MS=15000\n```\n\n| Env var | Default |\n| --- | --- |\n| `MCP_DB_URL` | _(required)_ executor login connection string |\n| `MCP_SQL_MAX_QUERY_BYTES` | `65536` |\n| `MCP_SQL_MAX_ROWS` | `1000` |\n| `MCP_SQL_MAX_RESULT_BYTES` | `1000000` |\n| `MCP_SQL_STATEMENT_TIMEOUT_MS` | `15000` |\n| `MCP_SQL_LOCK_TIMEOUT_MS` | `2000` |\n\n## Granting access to your data\n\nAgent SQL can only do what `authenticated` is granted. Out of the box that is\nnothing. For each table:\n\n```sql\ngrant usage on schema public to authenticated;\ngrant select, insert, update, delete on table public.todos to authenticated;\nalter table public.todos enable row level security;\ncreate policy \"Users access their own todos\"\n  on public.todos for all to authenticated\n  using ((select auth.uid()) = user_id)\n  with check ((select auth.uid()) = user_id);\n```\n\n## Verify\n\n```bash\n# Unit tests for the policy + RLS adapter\ndeno test supabase/functions/_shared/agent-sql/\n\n# End-to-end against a running local stack (OAuth + RLS boundary)\ndeno run -A scripts/local-mcp-e2e.ts\n```\n\n## Dependencies\n\nRequires [mcp-server](../mcp-server). Bundled by the\n[headless-app](../headless-app) block.",
+      "meta": {
+        "version": "1.0.0",
+        "tags": [
+          "ai",
+          "agents",
+          "mcp",
+          "postgres",
+          "rls",
+          "sql"
+        ],
+        "category": "AI",
+        "license": "MIT",
+        "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-sql",
         "dependencies": {
           "required": [
-            "database",
-            "api",
-            "functions"
+            "mcp-server"
           ]
         }
       }

@@ -1,91 +1,96 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-import { getTool, listTools } from './registry.ts'
-import { createServiceClient, createUserClient } from './user-client.ts'
+import { McpServer } from "npm:@modelcontextprotocol/sdk@1.29.0/server/mcp.js";
+import { WebStandardStreamableHTTPServerTransport } from "npm:@modelcontextprotocol/sdk@1.29.0/server/webStandardStreamableHttp.js";
 
-import './tools/index.ts'
+import {
+  applyCors,
+  authenticateRequest,
+  getAuthConfig,
+  isProtectedResourceMetadataRequest,
+  optionsResponse,
+  protectedResourceMetadataResponse,
+} from "./auth.ts";
+import { registerTools } from "./tools/index.ts";
+
+// =============================================================================
+// MCP server framework (Supabase Edge Function)
+// =============================================================================
+//
+// This is the reusable transport + auth + tool-registry shell. It exposes the
+// signed-in Supabase user's tools over the official MCP Streamable HTTP
+// transport. It deliberately knows NOTHING about specific tools — tool
+// templates (e.g. mcp-sql) add files under ./tools/ and extend ./tools/index.ts.
+//
+// See readme.md → "Composition contract".
+
+function readTextEnv(name: string, fallback: string): string {
+  return Deno.env.get(name)?.trim() || fallback;
+}
+
+const SERVER_NAME = readTextEnv("MCP_SERVER_NAME", "supabase-agent");
+const SERVER_DESCRIPTION = readTextEnv(
+  "MCP_SERVER_DESCRIPTION",
+  "MCP access to this Supabase project for the signed-in user.",
+);
 
 const SERVER_INFO = {
-  name: 'supabase-mcp-server',
-  version: '0.1.0',
-}
+  name: SERVER_NAME,
+  version: "1.0.0",
+};
 
-const PROTOCOL_VERSION = '2024-11-05'
+const SERVER_INSTRUCTIONS =
+  `${SERVER_DESCRIPTION} ` +
+  "Every tool runs as the signed-in Supabase user; role grants and Row Level Security apply. " +
+  "Call tools/list to discover the tools this project exposes, and read a tool's description " +
+  "and annotations before calling it — some tools may have side effects.";
 
-type JsonRpcRequest = {
-  jsonrpc: '2.0'
-  id?: string | number | null
-  method: string
-  params?: Record<string, unknown>
-}
-
-function rpcResult(id: JsonRpcRequest['id'], result: unknown) {
-  return Response.json({ jsonrpc: '2.0', id: id ?? null, result })
-}
-
-function rpcError(id: JsonRpcRequest['id'], code: number, message: string) {
-  return Response.json({
-    jsonrpc: '2.0',
-    id: id ?? null,
-    error: { code, message },
-  })
-}
-
-Deno.serve(async (req) => {
-  if (req.method !== 'POST') {
-    return new Response('expected POST request', { status: 405 })
+Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") {
+    return optionsResponse();
   }
 
-  let body: JsonRpcRequest
+  const auth = getAuthConfig(request);
+
+  if (isProtectedResourceMetadataRequest(request)) {
+    return protectedResourceMetadataResponse(auth);
+  }
+
+  const authentication = await authenticateRequest(request, auth);
+  if (!authentication.ok) {
+    return applyCors(authentication.response);
+  }
+
+  const server = new McpServer(SERVER_INFO, {
+    instructions: SERVER_INSTRUCTIONS,
+  });
+
+  registerTools(server, {
+    supabase: authentication.context.supabase,
+    principal: { claims: authentication.context.claims },
+    request,
+  });
+
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+
+  await server.connect(transport);
+
   try {
-    body = await req.json()
-  } catch {
-    return rpcError(null, -32700, 'parse error')
+    return applyCors(await transport.handleRequest(request));
+  } catch (error) {
+    console.error("MCP request failed", error);
+    return applyCors(
+      Response.json(
+        {
+          jsonrpc: "2.0",
+          id: null,
+          error: { code: -32603, message: "Internal server error" },
+        },
+        { status: 500 },
+      ),
+    );
   }
-
-  const supabase = createServiceClient()
-  const userSupabase = createUserClient(req)
-
-  switch (body.method) {
-    case 'initialize':
-      return rpcResult(body.id, {
-        protocolVersion: PROTOCOL_VERSION,
-        serverInfo: SERVER_INFO,
-        capabilities: { tools: {} },
-      })
-
-    case 'tools/list':
-      return rpcResult(body.id, {
-        tools: listTools().map(({ name, description, inputSchema }) => ({
-          name,
-          description,
-          inputSchema,
-        })),
-      })
-
-    case 'tools/call': {
-      const name = String(body.params?.name ?? '')
-      const args = (body.params?.arguments ?? {}) as Record<string, unknown>
-      const tool = getTool(name)
-
-      if (!tool) {
-        return rpcError(body.id, -32601, `unknown tool: ${name}`)
-      }
-
-      try {
-        const result = await tool.handler(args, { supabase, userSupabase, request: req })
-        return rpcResult(body.id, {
-          content: [{ type: 'text', text: JSON.stringify(result) }],
-        })
-      } catch (err) {
-        return rpcResult(body.id, {
-          isError: true,
-          content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }],
-        })
-      }
-    }
-
-    default:
-      return rpcError(body.id, -32601, `unknown method: ${body.method}`)
-  }
-})
+});

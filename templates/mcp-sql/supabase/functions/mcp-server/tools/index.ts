@@ -11,7 +11,7 @@ import { getSqlRuntime } from "../sql-runtime.ts";
 import { registerEchoTool } from "./echo.ts";
 import { registerWhoamiTool } from "./whoami.ts";
 
-// SQL tools from the mcp-sql template.
+// SQL tools from this template.
 import {
   registerDescribeFunctionTool,
   registerDescribeTableTool,
@@ -22,26 +22,30 @@ import { registerQuerySqlTool } from "./query-sql.ts";
 
 export type { ToolContext } from "./types.ts";
 
+// Context for the SQL tools. The runtime is a module singleton, not part of the
+// base ToolContext (see ../sql-runtime.ts and the framework's composition
+// contract).
 export type SqlToolContext = {
   sql: AgentSqlRuntime<SupabasePrincipal>;
   principal: SupabasePrincipal;
 };
 
 // =============================================================================
-// headless-app tool aggregator (the composition resolver)
+// Tool aggregator (standalone: mcp-server + mcp-sql)
 // =============================================================================
 //
-// This is the block-owned aggregator. Because the block depends on mcp-server
-// and mcp-sql, those file installs land first and this file overwrites the
-// per-template aggregators. EDIT THIS FILE when you add another tool template:
-// import its register* functions and call them below.
+// This is the leaf-owned aggregator used when installing mcp-sql directly on top
+// of mcp-server. When composing several tool templates, the headless-app block
+// ships the final aggregated version of this file. To add an external effect,
+// expose one MCP tool per Edge Function via ./edge-function.ts — do not expose a
+// generic function dispatcher or a raw database client.
 export function registerTools(server: McpServer, context: ToolContext): void {
   // Framework example tools.
   registerEchoTool(server, context);
   registerWhoamiTool(server, context);
 
-  // SQL tools (mcp-sql). The runtime is a module singleton; the principal is
-  // the verified claims from the base context.
+  // SQL tools — the runtime comes from the singleton; the principal is the
+  // verified claims from the base context.
   const sqlContext: SqlToolContext = {
     sql: getSqlRuntime(),
     principal: context.principal as SupabasePrincipal,

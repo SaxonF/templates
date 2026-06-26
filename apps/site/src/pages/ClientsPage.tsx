@@ -99,26 +99,28 @@ function ClientsContent() {
           ) : null}
 
           {!loading && grants.length > 0 ? (
-            <div className="mt-4 grid">
+            <div className="grid">
               {grants.map((grant) => {
                 const clientId = grant.client?.id ?? grant.client_id ?? 'unknown-client'
                 const name = grant.client?.name ?? grant.client_name ?? clientId
                 return (
                   <div
                     key={clientId}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-0.5 border-t border-border py-2.5 last:border-b"
+                    className="flex items-center justify-between gap-4 border-t border-border py-3 last:border-b"
                   >
-                    <strong className="col-start-1 font-medium">{name}</strong>
-                    <small className="col-start-1 text-muted-foreground">
-                      Scopes: {(grant.scopes ?? []).join(', ') || 'none'}
-                    </small>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Scopes: {(grant.scopes ?? []).join(', ') || 'none'}
+                      </p>
+                    </div>
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
-                      className="col-start-2 row-span-2 justify-self-end"
+                      className="shrink-0"
                       onClick={() => revokeGrant(grant)}
                     >
-                      Revoke access
+                      Revoke
                     </Button>
                   </div>
                 )

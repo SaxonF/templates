@@ -10,24 +10,19 @@ max_rows = 1000
 [db]
 port = 54322
 
-# Merged in by the headless-app block for the mcp-sql template: seed.sql sets the
-# local executor password and seed/*.sql holds optional demo data.
-[db.seed]
-enabled = true
-sql_paths = ["./seed.sql", "./seed/*.sql"]
-
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
 additional_redirect_urls = ["http://localhost:3000"]
 
 # Adds the MCP resource URL to OAuth access tokens (audience binding). See the
-# mcp_access_token_hook migration (mcp-server).
+# mcp_access_token_hook migration.
 [auth.hook.custom_access_token]
 enabled = true
 uri = "pg-functions://postgres/private/mcp_custom_access_token_hook"
 
-# OAuth 2.1 authorization server. The consent screen is served by mcp-auth-ui.
+# OAuth 2.1 authorization server. The consent screen is provided by the
+# mcp-auth-ui template at /oauth/consent/.
 [auth.oauth_server]
 enabled = true
 authorization_url_path = "/oauth/consent/"
@@ -35,10 +30,10 @@ allow_dynamic_registration = true
 
 [edge_runtime]
 enabled = true
-# per_worker keeps the worker (and the agent SQL pool) warm across requests.
-# oneshot spawns a fresh worker per request, which rebuilds the pool and reruns
-# the cold connect + attestation every time. Restart `functions serve` after
-# editing function code, since per_worker does not hot-reload.
+# per_worker keeps the worker (and any warm DB pool a tool template holds) alive
+# across requests. oneshot spawns a fresh worker per request. Restart
+# `functions serve` after editing function code, since per_worker does not
+# hot-reload.
 policy = "per_worker"
 inspector_port = 8083
 deno_version = 2

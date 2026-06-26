@@ -1,0 +1,20 @@
+{
+  "id": "mcp-auth-ui",
+  "name": "MCP Auth UI",
+  "description": "Vanilla front-end for the MCP server's OAuth flow: sign-in, consent, dynamic client management, and a setup wizard served from Supabase Storage / public",
+  "category": "AI",
+  "version": "1.0.0",
+  "tags": [
+    "ai",
+    "mcp",
+    "oauth",
+    "frontend"
+  ],
+  "dependencies": {
+    "required": [
+      "mcp-server"
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-auth-ui"
+}

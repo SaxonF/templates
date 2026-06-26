@@ -5,12 +5,7 @@ import { PageShell } from '@/components/layout/PageShell'
 
 const installCommand = 'npx shadcn@latest add SaxonF/templates/headless-app'
 
-const features = [
-  'Row‑level security',
-  'Auth & consent',
-  'MCP‑ready',
-  'Edge functions',
-]
+const features = ['MCP Server', "Auth'd DB access", 'Auth & consent'] as const
 
 export function HomePage() {
   const [copied, setCopied] = useState(false)

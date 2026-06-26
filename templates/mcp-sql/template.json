@@ -1,0 +1,22 @@
+{
+  "id": "mcp-sql",
+  "name": "MCP SQL",
+  "description": "MCP tool template that gives a connected agent RLS-scoped Postgres access as the signed-in user, via a dedicated unprivileged executor role, a SQL-AST policy, and transaction-local identity",
+  "category": "AI",
+  "version": "1.0.0",
+  "tags": [
+    "ai",
+    "agents",
+    "mcp",
+    "postgres",
+    "rls",
+    "sql"
+  ],
+  "dependencies": {
+    "required": [
+      "mcp-server"
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-sql"
+}

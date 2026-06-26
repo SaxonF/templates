@@ -1,5 +1,5 @@
 import type { CallToolResult } from "npm:@modelcontextprotocol/sdk@1.29.0/types.js";
-import { AgentSqlError } from "@agent-sql";
+import { AgentSqlError } from "../../_shared/agent-sql/mod.ts";
 
 // Shared helpers for building MCP tool results.
 //

@@ -27,13 +27,15 @@ export function PageLayout({ intro, panel, className, align = 'top' }: PageLayou
 export function PageIntro({
   title,
   lead,
+  titleClassName,
 }: {
   title: string
   lead: string
+  titleClassName?: string
 }) {
   return (
     <>
-      <h1 className="text-lg font-medium">{title}</h1>
+      <h1 className={cn('text-lg font-medium', titleClassName)}>{title}</h1>
       <p className="mt-1.5 leading-[1.55] text-muted-foreground">{lead}</p>
     </>
   )

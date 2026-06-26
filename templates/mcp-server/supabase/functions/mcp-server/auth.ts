@@ -5,21 +5,25 @@ import {
 import type { SupabaseClient, User } from "npm:@supabase/supabase-js@2.108.2";
 
 // =============================================================================
-// OAuth resource-server logic
+// Dual-mode authentication for the MCP server
 // =============================================================================
 //
-// This Edge Function is an OAuth 2.1 *protected resource*. Supabase Auth is the
-// authorization server. This module handles three things for index.ts:
+// This Edge Function is an OAuth 2.1 *protected resource*; Supabase Auth is the
+// authorization server. It accepts bearer tokens in TWO modes:
 //
-//   1. Discovery — answering /.well-known/oauth-protected-resource and issuing
-//      `WWW-Authenticate` challenges so clients can find the auth server.
-//   2. Authentication — verifying the bearer token's signature AND its claims
-//      (issuer, role, client_id, audience), then confirming the live session.
-//   3. CORS — permissive headers so browser-based MCP clients can connect.
+//   1. OAuth client (external MCP clients, e.g. Claude Desktop) — the token
+//      carries a `client_id` and MUST be audience-bound to THIS resource (the
+//      resource URL appears in `aud`, added by the custom access-token hook in
+//      the migrations). Audience binding stops a token minted for some other
+//      purpose from being replayed here.
 //
-// The audience binding (the resource URL must appear in the token's `aud`) is
-// what stops a token minted for some other purpose from being replayed here; it
-// is produced by the custom access-token hook in the migrations.
+//   2. First-party Supabase user JWT (e.g. an in-project agent forwarding the
+//      caller's session token) — no `client_id`, no resource-audience binding.
+//      Accepting it grants no more than PostgREST already does with the same
+//      token. Gate it with MCP_ALLOW_FIRST_PARTY_JWT=false to require OAuth.
+//
+// Both modes then build a user-scoped Supabase client and confirm the live
+// session, so revoked grants and deleted sessions take effect immediately.
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -41,11 +45,13 @@ const CORS_HEADERS: Record<string, string> = {
 // Types
 // -----------------------------------------------------------------------------
 
-export type OAuthConfig = {
+export type AuthConfig = {
   resourceUrl: string;
   metadataUrl: string;
   resourceName: string;
   authorizationServer: string;
+  /** When false, only audience-bound OAuth tokens are accepted. */
+  allowFirstPartyJwt: boolean;
 };
 
 export type AuthenticatedContext = {
@@ -55,9 +61,9 @@ export type AuthenticatedContext = {
   token: string;
   /** The authenticated user (from a live session check). */
   user: User;
-  /** The OAuth client_id the token was issued to. */
-  clientId: string;
-  /** Verified JWT claims, used to set the agent SQL database request context. */
+  /** The OAuth client_id the token was issued to, or null for first-party JWTs. */
+  clientId: string | null;
+  /** Verified JWT claims, forwarded to tools (e.g. to set DB request context). */
   claims: Record<string, unknown>;
 };
 
@@ -114,7 +120,7 @@ function publicRequestOrigin(request: Request): string {
   }
 }
 
-export function getOAuthConfig(request: Request): OAuthConfig {
+export function getAuthConfig(request: Request): AuthConfig {
   const requestOrigin = publicRequestOrigin(request);
   // Allow explicit overrides (MCP_RESOURCE_URL / MCP_AUTH_ISSUER) for custom
   // domains; otherwise derive both from the public request origin.
@@ -122,12 +128,16 @@ export function getOAuthConfig(request: Request): OAuthConfig {
     `${requestOrigin}${FUNCTION_PATH}`;
   const authorizationServer = readTrimmedEnv("MCP_AUTH_ISSUER") ??
     `${new URL(resourceUrl).origin}/auth/v1`;
+  const allowFirstPartyJwt =
+    (Deno.env.get("MCP_ALLOW_FIRST_PARTY_JWT")?.trim().toLowerCase() ??
+      "true") !== "false";
 
   return {
     resourceUrl,
     metadataUrl: `${resourceUrl}${METADATA_PATH}`,
     resourceName: readTextEnv("MCP_SERVER_NAME", "supabase-agent"),
     authorizationServer,
+    allowFirstPartyJwt,
   };
 }
 
@@ -143,7 +153,7 @@ export function isProtectedResourceMetadataRequest(request: Request): boolean {
 }
 
 export function protectedResourceMetadataResponse(
-  config: OAuthConfig,
+  config: AuthConfig,
 ): Response {
   return applyCors(
     Response.json({
@@ -157,11 +167,11 @@ export function protectedResourceMetadataResponse(
 }
 
 /** The WWW-Authenticate value that points clients at the metadata document. */
-function challenge(config: OAuthConfig): string {
+function challenge(config: AuthConfig): string {
   return `Bearer resource_metadata="${config.metadataUrl}", scope="${REQUIRED_SCOPE}"`;
 }
 
-function unauthorized(config: OAuthConfig, description: string): Response {
+function unauthorized(config: AuthConfig, description: string): Response {
   return Response.json(
     { error: "unauthorized", error_description: description },
     {
@@ -207,7 +217,7 @@ function legacyPublishableKeyOptions():
 
 export async function authenticateRequest(
   request: Request,
-  config: OAuthConfig,
+  config: AuthConfig,
 ): Promise<AuthenticationResult> {
   // Step 1: verify the bearer token's signature and basic validity.
   const { data: auth, error } = await verifyAuth(request, { auth: "user" });
@@ -229,40 +239,57 @@ export async function authenticateRequest(
 
     return {
       ok: false,
-      response: unauthorized(config, "A valid OAuth access token is required"),
+      response: unauthorized(config, "A valid access token is required"),
     };
   }
 
-  // Step 2: verify the claims bind this token to THIS resource. The order is
-  // issuer → user/client → audience, each failing closed with a 401 challenge.
   const claims = auth.jwtClaims;
-  const clientId = claims?.client_id;
   const audiences = audienceValues(claims?.aud);
+  const clientId = typeof claims?.client_id === "string" && claims.client_id
+    ? claims.client_id
+    : null;
 
-  if (claims?.iss !== config.authorizationServer) {
+  // Step 2: checks shared by both modes — an authenticated user token.
+  if (claims?.role !== "authenticated") {
     return {
       ok: false,
-      response: unauthorized(config, "The token issuer is invalid"),
+      response: unauthorized(config, "An authenticated user token is required"),
     };
   }
-
-  if (
-    claims?.role !== "authenticated" || typeof clientId !== "string" ||
-    !clientId
-  ) {
-    return {
-      ok: false,
-      response: unauthorized(config, "An OAuth user token is required"),
-    };
-  }
-
-  if (
-    !audiences.includes("authenticated") ||
-    !audiences.includes(config.resourceUrl)
-  ) {
+  if (!audiences.includes("authenticated")) {
     return {
       ok: false,
       response: unauthorized(config, "The token audience is invalid"),
+    };
+  }
+  if (typeof claims?.sub !== "string" || !claims.sub) {
+    return {
+      ok: false,
+      response: unauthorized(config, "The token subject is invalid"),
+    };
+  }
+
+  // Step 3: mode-specific binding.
+  if (clientId) {
+    // OAuth client: the token must be issued by our authorization server and
+    // audience-bound to THIS resource.
+    if (claims?.iss !== config.authorizationServer) {
+      return {
+        ok: false,
+        response: unauthorized(config, "The token issuer is invalid"),
+      };
+    }
+    if (!audiences.includes(config.resourceUrl)) {
+      return {
+        ok: false,
+        response: unauthorized(config, "The token audience is invalid"),
+      };
+    }
+  } else if (!config.allowFirstPartyJwt) {
+    // First-party JWTs are disabled; require an OAuth client token.
+    return {
+      ok: false,
+      response: unauthorized(config, "An OAuth access token is required"),
     };
   }
 
@@ -274,7 +301,7 @@ export async function authenticateRequest(
     };
   }
 
-  // Step 3: build a user-scoped client that carries the bearer token.
+  // Step 4: build a user-scoped client that carries the bearer token.
   let supabase: SupabaseClient;
   try {
     supabase = createContextClient({
@@ -298,7 +325,7 @@ export async function authenticateRequest(
     };
   }
 
-  // Step 4: online validation so revoked OAuth grants and deleted sessions take
+  // Step 5: online validation so revoked grants and deleted sessions take
   // effect immediately instead of waiting for the JWT to expire.
   const { data: userData, error: userError } = await supabase.auth.getUser(
     token,

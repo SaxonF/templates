@@ -1,8 +1,9 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 
 import { openai } from 'npm:@ai-sdk/openai'
+import { createMCPClient } from 'npm:@ai-sdk/mcp'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { jsonSchema, streamText, stepCountIs, tool, type CoreMessage, type ToolSet } from 'npm:ai'
+import { streamText, stepCountIs, type ModelMessage, type ToolSet } from 'npm:ai@7'
 import { z } from 'npm:zod@3'
 
 const DEFAULT_MODEL = 'gpt-4o-mini'
@@ -38,16 +39,8 @@ type AgentMemory = {
   content: string | null
 }
 
-type McpToolDefinition = {
-  name: string
-  description?: string
-  inputSchema?: Record<string, unknown>
-}
-
-type JsonRpcResponse<T> = {
-  result?: T
-  error?: { code: number; message: string }
-}
+// The MCP client returned by createMCPClient. We only use .tools() and .close().
+type McpClient = Awaited<ReturnType<typeof createMCPClient>>
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -108,12 +101,15 @@ Deno.serve(async (req) => {
     return Response.json({ error: message }, { status: 400 })
   }
 
-  const tools = await buildMcpTools(mcpServers)
+  // Connect to each MCP server with the AI SDK's MCP client over Streamable
+  // HTTP. The caller's JWT is forwarded in the Authorization header, which the
+  // mcp-server framework accepts via its first-party auth path.
+  const { tools, clients } = await buildMcpTools(mcpServers)
 
   const result = streamText({
     model: openai(body.model ?? Deno.env.get('OPENAI_MODEL') ?? DEFAULT_MODEL),
     system: body.system ?? DEFAULT_SYSTEM_PROMPT,
-    messages: toCoreMessages(history),
+    messages: toModelMessages(history),
     tools,
     stopWhen: stepCountIs(5),
   })
@@ -150,6 +146,8 @@ Deno.serve(async (req) => {
         console.error('agent stream failed:', message)
         controller.enqueue(encoder.encode(`\n\nError: ${message}`))
         controller.close()
+      } finally {
+        await closeMcpClients(clients)
       }
     },
   })
@@ -218,7 +216,7 @@ async function loadHistory(
   return (data ?? []).reverse() as AgentMemory[]
 }
 
-function toCoreMessages(memories: AgentMemory[]): CoreMessage[] {
+function toModelMessages(memories: AgentMemory[]): ModelMessage[] {
   return memories
     .filter((memory) => memory.content && memory.role !== 'tool')
     .map((memory) => ({
@@ -307,106 +305,49 @@ async function loadMcpServers(
   }))
 }
 
-async function buildMcpTools(servers: AgentMcpServer[]): Promise<ToolSet> {
-  const entries = await Promise.all(
+async function buildMcpTools(
+  servers: AgentMcpServer[]
+): Promise<{ tools: ToolSet; clients: McpClient[] }> {
+  const clients: McpClient[] = []
+
+  const toolSets = await Promise.all(
     servers.map(async (server) => {
       try {
-        const tools = await listMcpTools(server)
-        return tools.map((mcpTool) => {
-          const name = toAiToolName(server.name, mcpTool.name)
-
-          return [
-            name,
-            tool({
-              description: `[${server.name}] ${mcpTool.description ?? mcpTool.name}`,
-              inputSchema: jsonSchema(mcpTool.inputSchema ?? { type: 'object', properties: {} }),
-              strict: false,
-              execute: async (args) => callMcpTool(server, mcpTool.name, args),
-            }),
-          ] as const
+        const client = await createMCPClient({
+          transport: {
+            type: 'http',
+            url: server.url,
+            headers: server.headers ?? {},
+          },
         })
+        clients.push(client)
+
+        const serverTools = await client.tools()
+        // Namespace tools as `<server>_<tool>` so multiple servers cannot collide.
+        return Object.fromEntries(
+          Object.entries(serverTools).map(([name, definition]) => [
+            toAiToolName(server.name, name),
+            definition,
+          ])
+        ) as ToolSet
       } catch (error) {
         console.error(`failed to load MCP tools from ${server.name}:`, error)
-        return []
+        return {} as ToolSet
       }
     })
   )
 
-  const tools = Object.fromEntries(entries.flat())
+  const tools = Object.assign({}, ...toolSets) as ToolSet
 
   if (Object.keys(tools).length === 0 && servers.length > 0) {
     console.error('agent-chat: no MCP tools loaded', { servers: servers.map((server) => server.name) })
   }
 
-  return tools
+  return { tools, clients }
 }
 
-async function listMcpTools(server: AgentMcpServer): Promise<McpToolDefinition[]> {
-  await mcpRequest(server, 'initialize', {
-    protocolVersion: '2024-11-05',
-    clientInfo: { name: 'supabase-agent', version: '0.1.0' },
-    capabilities: {},
-  })
-
-  const response = await mcpRequest<{ tools: McpToolDefinition[] }>(server, 'tools/list')
-  return response.tools ?? []
-}
-
-async function callMcpTool(
-  server: AgentMcpServer,
-  name: string,
-  args: unknown
-): Promise<unknown> {
-  const response = await mcpRequest<{ content?: Array<{ type: string; text?: string }>; isError?: boolean }>(
-    server,
-    'tools/call',
-    {
-      name,
-      arguments: args,
-    }
-  )
-
-  if (response.isError) {
-    throw new Error(response.content?.map((item) => item.text).filter(Boolean).join('\n') ?? name)
-  }
-
-  return response.content?.map((item) => item.text).filter(Boolean).join('\n') ?? response
-}
-
-async function mcpRequest<T>(
-  server: AgentMcpServer,
-  method: string,
-  params?: Record<string, unknown>
-): Promise<T> {
-  const response = await fetch(server.url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(server.headers ?? {}),
-    },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: crypto.randomUUID(),
-      method,
-      params,
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`MCP server ${server.name} returned HTTP ${response.status}`)
-  }
-
-  const payload = (await response.json()) as JsonRpcResponse<T>
-
-  if (payload.error) {
-    throw new Error(payload.error.message)
-  }
-
-  if (payload.result === undefined) {
-    throw new Error(`MCP server ${server.name} returned no result`)
-  }
-
-  return payload.result
+async function closeMcpClients(clients: McpClient[]): Promise<void> {
+  await Promise.allSettled(clients.map((client) => client.close()))
 }
 
 function normalizeHeaders(value: unknown): Record<string, string> | undefined {

@@ -1,0 +1,23 @@
+{
+  "id": "mcp-server",
+  "name": "MCP Server",
+  "description": "Composable MCP server framework as a Supabase Edge Function: official Streamable HTTP transport, dual OAuth 2.1 + first-party JWT auth, and a tool registry that other templates extend",
+  "category": "AI",
+  "version": "1.0.0",
+  "tags": [
+    "ai",
+    "agents",
+    "mcp",
+    "oauth",
+    "functions"
+  ],
+  "dependencies": {
+    "optional": [
+      "mcp-auth-ui",
+      "mcp-sql",
+      "agent"
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-server"
+}
