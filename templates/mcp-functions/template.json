@@ -1,0 +1,22 @@
+{
+  "id": "mcp-functions",
+  "name": "MCP Functions",
+  "description": "Scaffold for exposing named, schema-validated Supabase Edge Functions as MCP tools without a generic function dispatcher",
+  "category": "AI",
+  "version": "1.0.0",
+  "tags": [
+    "ai",
+    "agents",
+    "mcp",
+    "functions",
+    "tools"
+  ],
+  "dependencies": {
+    "required": [
+      "mcp-server",
+      "functions"
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-functions"
+}

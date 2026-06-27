@@ -2,6 +2,7 @@
   "name": "@supabase-agent/agent-sql",
   "version": "0.1.0",
   "exports": "./mod.ts",
+  "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true
   }

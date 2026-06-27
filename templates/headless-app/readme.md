@@ -1,19 +1,26 @@
 # Headless App
 
-A **composition block** — not a standalone template. It installs everything you
-need to stand up a headless app where an authenticated agent gets RLS-scoped
-Postgres access over MCP:
+A **composition block** — not a standalone template. It installs the common
+Backplane stack for a headless app where authenticated agents get user-scoped
+database access plus Supabase-native workflow, storage, tenancy, knowledge, and
+observability tools over MCP:
 
 | Dependency | What it adds |
 | --- | --- |
 | [mcp-server](../mcp-server) | The MCP server framework: Streamable HTTP transport, dual OAuth 2.1 + first-party JWT auth, tool registry. |
 | [mcp-auth-ui](../mcp-auth-ui) | The OAuth front-end: sign-in, consent, client management, setup wizard. |
 | [mcp-sql](../mcp-sql) | RLS-scoped database tools (`query_sql`, `execute_sql`, schema introspection) via the `agent-sql` runtime + a dedicated executor role. |
+| [mcp-functions](../mcp-functions) | Scaffold for named, schema-validated Edge Function tools. |
+| [mcp-workflows](../mcp-workflows) | Enqueue, inspect, cancel, and retry durable workflow runs. |
+| [mcp-storage](../mcp-storage) | Storage listing, signed URLs, moves, copies, and deletes under Storage policies. |
+| [mcp-tenancy](../mcp-tenancy) | Organization discovery, membership listing, and RBAC permission checks. |
+| [mcp-knowledge](../mcp-knowledge) | RAG ingestion and search tools. |
+| [mcp-observability](../mcp-observability) | User-scoped app logs and failed-workflow inspection. |
 
 Because shadcn copies whole files (no merge), this block also **owns the few
 files that must be merged across those templates**:
 
-- `supabase/config.toml` — the framework's auth/runtime config **plus**
+- `supabase/config.toml` — the framework's auth/runtime/storage config **plus**
   `[db.seed]` for the executor password and demo data.
 - `supabase/functions/.env.example` — the merged env (`MCP_SERVER_*`,
   `MCP_DB_URL`, `MCP_SQL_*`).
@@ -29,8 +36,8 @@ per-template versions last — which is exactly what you want.
 npx shadcn@latest add SaxonF/templates/headless-app
 ```
 
-This resolves and installs `mcp-server` → `mcp-auth-ui` → `mcp-sql`, then lands
-the merged files above.
+This resolves and installs the MCP framework plus the Supabase-native tool
+packs, then lands the merged files above.
 
 > Want a chat agent too? The [agent](../agent) template is intentionally
 > **not** part of this block (it is standalone). Install it separately
@@ -73,6 +80,10 @@ server).
    `http://127.0.0.1:54321/functions/v1/mcp-server`, or point the
    [agent](../agent) at the same project.
 
+Knowledge tools require `OPENAI_API_KEY` for the RAG embedding/query functions.
+Workflow tools require adding handlers in `workflow-worker/index.ts` for your
+app-specific workflow types.
+
 ## Grant the agent access to your data
 
 The block grants no application-table privileges by default. For each table the
@@ -91,7 +102,7 @@ create policy "users access their own todos"
 ## Add another tool template
 
 1. Install it: `npx shadcn@latest add SaxonF/templates/<tool>`.
-2. Add its `register*` calls to `supabase/functions/mcp-server/tools/index.ts`
+2. Add its `register*Tools` calls to `supabase/functions/mcp-server/tools/index.ts`
    (this block owns that aggregator).
 
 See the [mcp-server composition contract](../mcp-server/readme.md#composition-contract)

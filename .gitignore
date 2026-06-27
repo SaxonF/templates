@@ -4,6 +4,7 @@ dist/
 build/
 *.tsbuildinfo
 .DS_Store
+templates/**/deno.lock
 
 # Env files — ignore every .env (including supabase/functions/.env) except the committed examples
 .env

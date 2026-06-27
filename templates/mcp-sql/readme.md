@@ -49,6 +49,7 @@ This template is **purely additive** to the mcp-server function (the
   `sql-runtime.ts` singleton, and the `_shared/agent-sql/` library.
 - The library is imported with **relative paths**, so no framework files
   (`index.ts`, `auth.ts`, `deno.json`) are touched.
+- Shared MCP result helpers come from the base **mcp-server** framework.
 - It ships its own `tools/index.ts` aggregator (framework examples + SQL tools)
   for the standalone `mcp-server + mcp-sql` install. The
   [headless-app](../headless-app) block ships the final aggregator when more

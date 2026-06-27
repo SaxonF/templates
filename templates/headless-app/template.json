@@ -1,9 +1,9 @@
 {
   "id": "headless-app",
   "name": "Headless App",
-  "description": "A composition block: everything you need for a headless app — the MCP server framework, OAuth front-end, and RLS-scoped database tool, wired together",
+  "description": "A composition block: MCP auth, RLS-scoped SQL, and Supabase-native tools for functions, workflows, storage, tenancy, knowledge, and observability",
   "category": "AI",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "tags": [
     "ai",
     "agents",
@@ -17,7 +17,13 @@
     "required": [
       "mcp-server",
       "mcp-auth-ui",
-      "mcp-sql"
+      "mcp-sql",
+      "mcp-functions",
+      "mcp-workflows",
+      "mcp-storage",
+      "mcp-tenancy",
+      "mcp-knowledge",
+      "mcp-observability"
     ]
   },
   "license": "MIT",

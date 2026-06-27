@@ -232,9 +232,32 @@ async function listTemplateFiles(templateDir: string): Promise<string[]> {
 
 function isTemplateSourceFile(relativeFilePath: string): boolean {
   const basename = path.posix.basename(relativeFilePath)
+  const segments = relativeFilePath.split('/')
   const topLevelFile = !relativeFilePath.includes('/')
 
-  if (basename === '.DS_Store') {
+  if (
+    basename === '.DS_Store' ||
+    basename === 'deno.lock' ||
+    basename === '.setup-cache.bin' ||
+    basename.endsWith('.lock.poll')
+  ) {
+    return false
+  }
+
+  if (
+    segments.some((segment) =>
+      [
+        '.cache',
+        '.deno',
+        '.git',
+        '.supabase',
+        'build',
+        'coverage',
+        'dist',
+        'node_modules',
+      ].includes(segment)
+    )
+  ) {
     return false
   }
 

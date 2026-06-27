@@ -15,6 +15,12 @@
     "optional": [
       "mcp-auth-ui",
       "mcp-sql",
+      "mcp-functions",
+      "mcp-workflows",
+      "mcp-storage",
+      "mcp-tenancy",
+      "mcp-knowledge",
+      "mcp-observability",
       "agent"
     ]
   },

@@ -58,6 +58,7 @@ $$;
 
 create table if not exists public.workflow_runs (
   id uuid primary key default gen_random_uuid(),
+  created_by uuid default auth.uid(),
   workflow_type text not null,
   input jsonb not null default '{}',
   status text not null default 'queued' check (
@@ -105,6 +106,9 @@ create table if not exists public.workflow_attempts (
 create index if not exists workflow_runs_status_run_after_idx
 on public.workflow_runs (status, run_after);
 
+create index if not exists workflow_runs_created_by_idx
+on public.workflow_runs (created_by, created_at desc);
+
 create index if not exists workflow_steps_run_id_idx
 on public.workflow_steps (run_id);
 
@@ -115,20 +119,34 @@ alter table public.workflow_runs enable row level security;
 alter table public.workflow_steps enable row level security;
 alter table public.workflow_attempts enable row level security;
 
-create policy "Authenticated users can read workflow runs"
+create policy "Users can read their workflow runs"
 on public.workflow_runs for select
 to authenticated
-using (true);
+using ((select auth.uid()) = created_by);
 
-create policy "Authenticated users can read workflow steps"
+create policy "Users can read steps for their workflow runs"
 on public.workflow_steps for select
 to authenticated
-using (true);
+using (
+  exists (
+    select 1
+    from public.workflow_runs
+    where workflow_runs.id = workflow_steps.run_id
+      and workflow_runs.created_by = (select auth.uid())
+  )
+);
 
-create policy "Authenticated users can read workflow attempts"
+create policy "Users can read attempts for their workflow runs"
 on public.workflow_attempts for select
 to authenticated
-using (true);
+using (
+  exists (
+    select 1
+    from public.workflow_runs
+    where workflow_runs.id = workflow_attempts.run_id
+      and workflow_runs.created_by = (select auth.uid())
+  )
+);
 
 select pgmq.create('workflow_runs');
 
@@ -171,6 +189,92 @@ begin
   return run_id;
 end;
 $$;
+
+revoke all on function public.enqueue_workflow(text, jsonb, timestamptz, int, jsonb)
+from public, anon;
+grant execute on function public.enqueue_workflow(text, jsonb, timestamptz, int, jsonb)
+to authenticated;
+
+create or replace function public.cancel_workflow(target_run_id uuid)
+returns public.workflow_runs
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  cancelled public.workflow_runs;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication is required';
+  end if;
+
+  update public.workflow_runs
+  set
+    status = 'cancelled',
+    locked_at = null,
+    locked_by = null,
+    updated_at = now()
+  where id = target_run_id
+    and created_by = auth.uid()
+    and status in ('queued', 'running', 'failed')
+  returning * into cancelled;
+
+  if cancelled.id is null then
+    raise exception 'Workflow run not found or cannot be cancelled';
+  end if;
+
+  return cancelled;
+end;
+$$;
+
+create or replace function public.retry_workflow(target_run_id uuid)
+returns public.workflow_runs
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  retried public.workflow_runs;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication is required';
+  end if;
+
+  update public.workflow_runs
+  set
+    status = 'queued',
+    run_after = now(),
+    locked_at = null,
+    locked_by = null,
+    error = null,
+    updated_at = now()
+  where id = target_run_id
+    and created_by = auth.uid()
+    and status in ('failed', 'dead_letter', 'cancelled')
+  returning * into retried;
+
+  if retried.id is null then
+    raise exception 'Workflow run not found or cannot be retried';
+  end if;
+
+  perform pgmq.send(
+    queue_name => 'workflow_runs',
+    msg => jsonb_build_object('runId', retried.id)
+  );
+
+  return retried;
+end;
+$$;
+
+revoke all on function public.cancel_workflow(uuid) from public, anon;
+revoke all on function public.retry_workflow(uuid) from public, anon;
+grant execute on function public.cancel_workflow(uuid) to authenticated;
+grant execute on function public.retry_workflow(uuid) to authenticated;
+
+grant select on table public.workflow_runs to authenticated;
+grant select on table public.workflow_steps to authenticated;
+grant select on table public.workflow_attempts to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
 
 create or replace function util.dispatch_workflows(
   batch_size int default 10,

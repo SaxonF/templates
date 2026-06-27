@@ -1,0 +1,22 @@
+{
+  "id": "mcp-tenancy",
+  "name": "MCP Tenancy",
+  "description": "MCP tools for resolving multi-tenant organization context, memberships, and permissions",
+  "category": "AI",
+  "version": "1.0.0",
+  "tags": [
+    "ai",
+    "agents",
+    "mcp",
+    "tenancy",
+    "rbac"
+  ],
+  "dependencies": {
+    "required": [
+      "mcp-server",
+      "multi-tenant-rbac"
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-tenancy"
+}

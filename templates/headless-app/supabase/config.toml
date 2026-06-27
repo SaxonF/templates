@@ -16,6 +16,10 @@ port = 54322
 enabled = true
 sql_paths = ["./seed.sql", "./seed/*.sql"]
 
+[storage]
+enabled = true
+file_size_limit = "50MB"
+
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"

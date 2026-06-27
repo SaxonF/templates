@@ -1,0 +1,22 @@
+{
+  "id": "mcp-knowledge",
+  "name": "MCP Knowledge",
+  "description": "MCP tools for ingesting and searching knowledge through the RAG pipeline",
+  "category": "AI",
+  "version": "1.0.0",
+  "tags": [
+    "ai",
+    "agents",
+    "mcp",
+    "rag",
+    "knowledge"
+  ],
+  "dependencies": {
+    "required": [
+      "mcp-server",
+      "ai-rag-pipeline"
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-knowledge"
+}

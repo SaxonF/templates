@@ -1,0 +1,23 @@
+{
+  "id": "mcp-observability",
+  "name": "MCP Observability",
+  "description": "MCP tools for writing and reading user-scoped app logs plus inspecting failed workflow runs",
+  "category": "AI",
+  "version": "1.0.0",
+  "tags": [
+    "ai",
+    "agents",
+    "mcp",
+    "observability",
+    "logs"
+  ],
+  "dependencies": {
+    "required": [
+      "mcp-server",
+      "observability-logs",
+      "mcp-workflows"
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-observability"
+}

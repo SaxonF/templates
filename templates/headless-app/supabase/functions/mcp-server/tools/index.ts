@@ -11,6 +11,9 @@ import { getSqlRuntime } from "../sql-runtime.ts";
 import { registerEchoTool } from "./echo.ts";
 import { registerWhoamiTool } from "./whoami.ts";
 
+// App-owned typed Edge Function tool scaffold.
+import { registerFunctionTools } from "./functions.ts";
+
 // SQL tools from the mcp-sql template.
 import {
   registerDescribeFunctionTool,
@@ -18,7 +21,12 @@ import {
   registerListDatabaseObjectsTool,
 } from "./catalog.ts";
 import { registerExecuteSqlTool } from "./execute-sql.ts";
+import { registerKnowledgeTools } from "./knowledge.ts";
+import { registerObservabilityTools } from "./observability.ts";
 import { registerQuerySqlTool } from "./query-sql.ts";
+import { registerStorageTools } from "./storage.ts";
+import { registerTenancyTools } from "./tenancy.ts";
+import { registerWorkflowTools } from "./workflows.ts";
 
 export type { ToolContext } from "./types.ts";
 
@@ -39,6 +47,14 @@ export function registerTools(server: McpServer, context: ToolContext): void {
   // Framework example tools.
   registerEchoTool(server, context);
   registerWhoamiTool(server, context);
+
+  // Supabase-native composable tools.
+  registerFunctionTools(server, context);
+  registerWorkflowTools(server, context);
+  registerStorageTools(server, context);
+  registerTenancyTools(server, context);
+  registerKnowledgeTools(server, context);
+  registerObservabilityTools(server, context);
 
   // SQL tools (mcp-sql). The runtime is a module singleton; the principal is
   // the verified claims from the base context.

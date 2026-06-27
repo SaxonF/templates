@@ -36,6 +36,7 @@ your own files.
 | `supabase/functions/mcp-server/tools/types.ts` | The base `ToolContext` type. Framework-owned; never overwritten. |
 | `supabase/functions/mcp-server/tools/index.ts` | The tool aggregator — **the one extension point**. |
 | `supabase/functions/mcp-server/tools/{echo,whoami}.ts` | Example tools. |
+| `supabase/functions/mcp-server/tools/{result,edge-function}.ts` | Shared helpers for consistent MCP results and typed Edge Function tool wrappers. |
 | `supabase/migrations/…_mcp_access_token_hook.sql` | Adds the resource URL to OAuth token audiences. |
 | `supabase/config.toml` | Auth (OAuth server + hook), edge runtime, function config. |
 
@@ -51,6 +52,9 @@ whole-file copy:
   `types.ts`, or `deno.json`.
 - **Tools get their own dependencies from module singletons**, not from the base
   `ToolContext`, so the framework never references a specific tool.
+- **Generic helpers live in the framework.** Use `result.ts` for consistent MCP
+  payloads and `edge-function.ts` for named, schema-validated Edge Function
+  tools. Do not expose a generic "invoke any function" dispatcher.
 - **`tools/index.ts` is the only contested file.** It is owned by the leaf: a
   single tool template ships its own version; when several are composed, the
   [headless-app](../headless-app) block ships the final aggregated version.
@@ -102,4 +106,6 @@ http://127.0.0.1:54321/functions/v1/mcp-server
 
 Requires Supabase **database**, **auth**, and **functions**. Pairs with
 [mcp-auth-ui](../mcp-auth-ui) (OAuth UI), [mcp-sql](../mcp-sql) (database tool),
-and the [agent](../agent). The [headless-app](../headless-app) block bundles them.
+and Supabase-native tool packs such as [mcp-workflows](../mcp-workflows),
+[mcp-storage](../mcp-storage), and [mcp-tenancy](../mcp-tenancy). The
+[headless-app](../headless-app) block bundles the common stack.
