@@ -920,9 +920,24 @@
           "target": "~/supabase/functions/_shared/agent-sql/catalog.ts"
         },
         {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/database_catalog_test.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/database_catalog_test.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/database_identity_test.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/database_identity_test.ts"
+        },
+        {
           "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/database_integration_test.ts",
           "type": "registry:file",
           "target": "~/supabase/functions/_shared/agent-sql/database_integration_test.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/database_resource_test.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/database_resource_test.ts"
         },
         {
           "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/deno.json",
@@ -945,6 +960,241 @@
           "target": "~/supabase/functions/_shared/agent-sql/mod.ts"
         },
         {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/.deno.lock",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/.deno.lock"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/.deno.lock.poll",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/.deno.lock.poll"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/.setup-cache.bin",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/.setup-cache.bin"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/.initialized",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/.initialized"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/LICENSE",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/LICENSE"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/package.json",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/package.json"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/pg_query_wasm.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/pg_query_wasm.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/pg_query.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/pg_query.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/README.md",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/pg-query-emscripten@5.1.0/node_modules/pg-query-emscripten/README.md"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/.initialized",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/.initialized"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/polyfills.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/polyfills.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/bytes.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/bytes.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/connection.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/connection.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/errors.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/errors.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/index.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/index.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/large.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/large.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/query.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/query.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/queue.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/queue.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/result.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/result.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/subscribe.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/subscribe.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/types.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cf/src/types.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/package.json",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/package.json"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/bytes.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/bytes.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/connection.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/connection.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/errors.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/errors.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/index.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/index.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/large.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/large.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/query.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/query.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/queue.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/queue.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/result.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/result.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/subscribe.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/subscribe.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/types.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/cjs/src/types.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/package.json",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/package.json"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/README.md",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/README.md"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/bytes.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/bytes.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/connection.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/connection.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/errors.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/errors.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/index.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/index.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/large.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/large.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/query.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/query.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/queue.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/queue.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/result.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/result.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/subscribe.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/subscribe.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/types.js",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/src/types.js"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/types/index.d.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/types/index.d.ts"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/types/package.json",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/types/package.json"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/types/tsconfig.json",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/node_modules/.deno/postgres@3.4.7/node_modules/postgres/types/tsconfig.json"
+        },
+        {
           "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/policy_test.ts",
           "type": "registry:file",
           "target": "~/supabase/functions/_shared/agent-sql/policy_test.ts"
@@ -958,6 +1208,11 @@
           "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/README.md",
           "type": "registry:file",
           "target": "~/supabase/functions/_shared/agent-sql/README.md"
+        },
+        {
+          "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/runtime_resource_test.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/_shared/agent-sql/runtime_resource_test.ts"
         },
         {
           "path": "templates/mcp-sql/supabase/functions/_shared/agent-sql/runtime.ts",
@@ -1030,7 +1285,7 @@
           "target": "~/supabase/seed/demo_tasks.sql"
         }
       ],
-      "docs": "# MCP SQL\n\nA **tool template** for [mcp-server](../mcp-server). It gives whatever agent\nconnects to the MCP server **RLS-scoped Postgres access as the signed-in user** —\nwithout ever handing out a privileged database client.\n\nIt adds five tools: `query_sql`, `execute_sql`, `list_database_objects`,\n`describe_table`, `describe_function`.\n\n## How it stays safe\n\nAccess is bounded by several independent layers (no single one is the boundary):\n\n1. **Dedicated login role** (`mcp_sql_executor`) — unprivileged, `NOINHERIT`,\n   member of `authenticated` only, owns nothing. There is nothing privileged for\n   untrusted SQL to escape into. Created and validated by the migrations.\n2. **SQL-AST policy** ([`_shared/agent-sql/policy.ts`](supabase/functions/_shared/agent-sql/policy.ts))\n   — parses each statement with the real Postgres grammar and accepts only\n   `SELECT` (query) or `INSERT/UPDATE/DELETE/MERGE` (mutation); rejects DDL,\n   procedural commands, `SELECT INTO`, row-locking, and context-mutating\n   functions.\n3. **Transaction-local identity** — each statement runs inside one transaction\n   that sets `role`, `request.jwt.claims`, and `search_path` with `SET LOCAL`,\n   then attests and re-verifies the context before commit.\n4. **Resource limits** — statement size, row count, result bytes, statement and\n   lock timeouts (all configurable).\n5. **Supabase RLS** — the final boundary; agent SQL inherits exactly the\n   `authenticated` grants and policies you define.\n\nSee [`_shared/agent-sql/README.md`](supabase/functions/_shared/agent-sql/README.md)\nfor the full security contract.\n\n## Composition\n\nThis template is **purely additive** to the mcp-server function (the\n[composition contract](../mcp-server/readme.md#composition-contract)):\n\n- It drops tool files under `supabase/functions/mcp-server/tools/`, the\n  `sql-runtime.ts` singleton, and the `_shared/agent-sql/` library.\n- The library is imported with **relative paths**, so no framework files\n  (`index.ts`, `auth.ts`, `deno.json`) are touched.\n- It ships its own `tools/index.ts` aggregator (framework examples + SQL tools)\n  for the standalone `mcp-server + mcp-sql` install. The\n  [headless-app](../headless-app) block ships the final aggregator when more\n  tools are composed.\n\n## Required configuration\n\nNot shipped here — the [headless-app](../headless-app) block provides the merged\nversions. Standalone, add these to your project:\n\n**`supabase/config.toml`** — enable the demo/executor seed:\n\n```toml\n[db.seed]\nenabled = true\nsql_paths = [\"./seed.sql\", \"./seed/*.sql\"]\n```\n\n**`supabase/functions/.env`** — the executor connection string and optional limits:\n\n```bash\n# LOCAL works as-is after `supabase db reset` (seed.sql sets the matching password).\nMCP_DB_URL=postgresql://mcp_sql_executor:local-dev-password@db:5432/postgres\n\n# Optional limits (safe defaults in code):\n# MCP_SQL_MAX_ROWS=1000\n# MCP_SQL_STATEMENT_TIMEOUT_MS=15000\n```\n\n| Env var | Default |\n| --- | --- |\n| `MCP_DB_URL` | _(required)_ executor login connection string |\n| `MCP_SQL_MAX_QUERY_BYTES` | `65536` |\n| `MCP_SQL_MAX_ROWS` | `1000` |\n| `MCP_SQL_MAX_RESULT_BYTES` | `1000000` |\n| `MCP_SQL_STATEMENT_TIMEOUT_MS` | `15000` |\n| `MCP_SQL_LOCK_TIMEOUT_MS` | `2000` |\n\n## Granting access to your data\n\nAgent SQL can only do what `authenticated` is granted. Out of the box that is\nnothing. For each table:\n\n```sql\ngrant usage on schema public to authenticated;\ngrant select, insert, update, delete on table public.todos to authenticated;\nalter table public.todos enable row level security;\ncreate policy \"Users access their own todos\"\n  on public.todos for all to authenticated\n  using ((select auth.uid()) = user_id)\n  with check ((select auth.uid()) = user_id);\n```\n\n## Verify\n\n```bash\n# Unit tests for the policy + RLS adapter\ndeno test supabase/functions/_shared/agent-sql/\n\n# End-to-end against a running local stack (OAuth + RLS boundary)\ndeno run -A scripts/local-mcp-e2e.ts\n```\n\n## Dependencies\n\nRequires [mcp-server](../mcp-server). Bundled by the\n[headless-app](../headless-app) block.",
+      "docs": "# MCP SQL\n\nA **tool template** for [mcp-server](../mcp-server). It gives whatever agent\nconnects to the MCP server **RLS-scoped Postgres access as the signed-in user** —\nwithout ever handing out a privileged database client.\n\nIt adds five tools: `query_sql`, `execute_sql`, `list_database_objects`,\n`describe_table`, `describe_function`.\n\n## How it stays safe\n\nAccess is bounded by several independent layers (no single one is the boundary):\n\n1. **Dedicated login role** (`mcp_sql_executor`) — unprivileged, `NOINHERIT`,\n   member of `authenticated` only, owns nothing. There is nothing privileged for\n   untrusted SQL to escape into. Created and validated by the migrations.\n2. **SQL-AST policy** ([`_shared/agent-sql/policy.ts`](supabase/functions/_shared/agent-sql/policy.ts))\n   — parses each statement with the real Postgres grammar and accepts only\n   `SELECT` (query) or `INSERT/UPDATE/DELETE/MERGE` (mutation); rejects DDL,\n   procedural commands, `SELECT INTO`, row-locking, and context-mutating\n   functions.\n3. **Transaction-local identity** — each statement runs inside one transaction\n   that sets `role`, `request.jwt.claims`, and `search_path` with `SET LOCAL`,\n   then attests and re-verifies the context before commit. Each request also\n   reserves its connection and runs `discard all` before the transaction, so a\n   session-level GUC, advisory lock, temp table, or cursor left by a prior\n   request's function body cannot leak across pooled requests.\n4. **Resource limits** — statement size, row count, result bytes, statement and\n   lock timeouts (all configurable). A `RETURNING` mutation is capped at the\n   database, not in client memory: the write runs in full while the returned rows\n   are bounded and `rowCount` still reports the true affected-row count.\n5. **Supabase RLS** — the final boundary; agent SQL inherits exactly the\n   `authenticated` grants and policies you define.\n\nCatalog tools share one disclosure surface: `describe_table` and\n`describe_function` exclude the same internal schemas (`auth`, `vault`,\n`storage`, …) that `list_database_objects` hides, in addition to privilege\nfiltering.\n\nSee [`_shared/agent-sql/README.md`](supabase/functions/_shared/agent-sql/README.md)\nfor the full security contract, threat-model table, and documented limitations.\n\n## Composition\n\nThis template is **purely additive** to the mcp-server function (the\n[composition contract](../mcp-server/readme.md#composition-contract)):\n\n- It drops tool files under `supabase/functions/mcp-server/tools/`, the\n  `sql-runtime.ts` singleton, and the `_shared/agent-sql/` library.\n- The library is imported with **relative paths**, so no framework files\n  (`index.ts`, `auth.ts`, `deno.json`) are touched.\n- It ships its own `tools/index.ts` aggregator (framework examples + SQL tools)\n  for the standalone `mcp-server + mcp-sql` install. The\n  [headless-app](../headless-app) block ships the final aggregator when more\n  tools are composed.\n\n## Required configuration\n\nNot shipped here — the [headless-app](../headless-app) block provides the merged\nversions. Standalone, add these to your project:\n\n**`supabase/config.toml`** — enable the demo/executor seed:\n\n```toml\n[db.seed]\nenabled = true\nsql_paths = [\"./seed.sql\", \"./seed/*.sql\"]\n```\n\n**`supabase/functions/.env`** — the executor connection string and optional limits:\n\n```bash\n# LOCAL works as-is after `supabase db reset` (seed.sql sets the matching password).\nMCP_DB_URL=postgresql://mcp_sql_executor:local-dev-password@db:5432/postgres\n\n# Optional limits (safe defaults in code):\n# MCP_SQL_MAX_ROWS=1000\n# MCP_SQL_STATEMENT_TIMEOUT_MS=15000\n```\n\n| Env var | Default |\n| --- | --- |\n| `MCP_DB_URL` | _(required)_ executor login connection string |\n| `MCP_SQL_MAX_QUERY_BYTES` | `65536` |\n| `MCP_SQL_MAX_ROWS` | `1000` |\n| `MCP_SQL_MAX_RESULT_BYTES` | `1000000` |\n| `MCP_SQL_STATEMENT_TIMEOUT_MS` | `15000` |\n| `MCP_SQL_LOCK_TIMEOUT_MS` | `2000` |\n\n## Granting access to your data\n\nAgent SQL can only do what `authenticated` is granted. Out of the box that is\nnothing. For each table:\n\n```sql\ngrant usage on schema public to authenticated;\ngrant select, insert, update, delete on table public.todos to authenticated;\nalter table public.todos enable row level security;\ncreate policy \"Users access their own todos\"\n  on public.todos for all to authenticated\n  using ((select auth.uid()) = user_id)\n  with check ((select auth.uid()) = user_id);\n```\n\n## Verify\n\n```bash\n# Unit tests for the policy + RLS adapter\ndeno test supabase/functions/_shared/agent-sql/\n\n# End-to-end against a running local stack (OAuth + RLS boundary)\ndeno run -A scripts/local-mcp-e2e.ts\n```\n\n## Dependencies\n\nRequires [mcp-server](../mcp-server). Bundled by the\n[headless-app](../headless-app) block.",
       "meta": {
         "version": "1.0.0",
         "tags": [

@@ -168,3 +168,207 @@ Deno.test("policy measures UTF-8 bytes and preserves semicolons in literals", as
     30,
   );
 });
+
+Deno.test("policy rejects set_config reached through schema, quoting, and nesting", async () => {
+  for (
+    const sql of [
+      // schema-qualified
+      `select pg_catalog.set_config('request.jwt.claims', '{}', true)`,
+      // quoted / cased identifier
+      `select "set_config"('request.jwt.claims', '{}', true)`,
+      `select "SET_CONFIG"('request.jwt.claims', '{}', true)`,
+      // nested inside a CTE
+      `with c as (select pg_catalog.set_config('x', 'y', true)) select * from c`,
+      // nested inside a LATERAL subquery
+      `select *
+       from todos t,
+       lateral (select set_config('x', 'y', true) as v) s`,
+      // nested inside a scalar subquery
+      `select (select set_config('x', 'y', true))`,
+      // nested in a function-argument position
+      `select coalesce(set_config('x', 'y', true), '')`,
+    ]
+  ) {
+    await assertRejected(sql, "query", "SQL_FORBIDDEN_FUNCTION");
+  }
+});
+
+Deno.test("policy accepts pg_sleep and advisory xact lock by design", async () => {
+  // These PUBLIC functions are intentionally allowed; their bound is
+  // statement_timeout (enforced by the runtime), not the AST policy. This test
+  // encodes the product decision so any future change here is deliberate.
+  for (
+    const sql of [
+      `select pg_sleep(1)`,
+      `select pg_advisory_xact_lock(1)`,
+    ]
+  ) {
+    const statement = await validateAgentSql(sql, "query", 65_536);
+    assert(
+      statement.kind === "select",
+      `expected select kind for: ${sql}`,
+    );
+  }
+});
+
+Deno.test("query mode accepts SELECT-shaped statements and rejects writes", async () => {
+  // VALUES and TABLE both parse to SelectStmt and are accepted as queries.
+  for (
+    const sql of [
+      `values (1),(2)`,
+      `table todos`,
+    ]
+  ) {
+    const statement = await validateAgentSql(sql, "query", 65_536);
+    assert(statement.kind === "select", `expected select for: ${sql}`);
+    assert(statement.hasReturning === false);
+  }
+
+  // CREATE TABLE AS / SELECT INTO and temp/unlogged variants are not SELECTs.
+  for (
+    const sql of [
+      `create table x as select 1`,
+      `create temporary table x as select 1`,
+      `create unlogged table x as select 1`,
+    ]
+  ) {
+    await assertRejected(sql, "query", "SQL_MODE_VIOLATION");
+  }
+  // SELECT INTO (and temp/unlogged INTO) surface as a forbidden node.
+  for (
+    const sql of [
+      `select 1 into y`,
+      `select 1 into temporary y`,
+      `select 1 into unlogged y`,
+    ]
+  ) {
+    await assertRejected(sql, "query", "SQL_FORBIDDEN_NODE");
+  }
+
+  // A DML CTE is still a write and is rejected in query mode.
+  await assertRejected(
+    `with a as (insert into todos(id) values (1) returning *) select * from a`,
+    "query",
+    "SQL_MODE_VIOLATION",
+  );
+});
+
+Deno.test("mutation mode accepts every DML root including multi-table DML CTEs", async () => {
+  for (
+    const [sql, kind] of [
+      [`insert into todos(id) values (1)`, "insert"],
+      [`update todos set done = true where id = 1`, "update"],
+      [`delete from todos where id = 1`, "delete"],
+      [
+        `merge into todos t using (values (1)) s(id) on t.id = s.id
+         when matched then update set done = true`,
+        "merge",
+      ],
+    ] as const
+  ) {
+    const statement = await validateAgentSql(sql, "mutation", 65_536);
+    assert(statement.kind === kind, `expected ${kind} for: ${sql}`);
+  }
+
+  // A multi-table DML CTE (writing one table, inserting into another) is an
+  // intentional, RLS-bounded capability in mutation mode.
+  const statement = await validateAgentSql(
+    `with a as (update other set x = 1 returning *)
+     insert into mine select * from a`,
+    "mutation",
+    65_536,
+  );
+  assert(statement.kind === "insert");
+});
+
+Deno.test("policy computes hasReturning from the root RETURNING clause", async () => {
+  for (
+    const sql of [
+      `insert into todos(id) values (1) returning id`,
+      `update todos set done = true where id = 1 returning *`,
+      `delete from todos where id = 1 returning id`,
+    ]
+  ) {
+    const statement = await validateAgentSql(sql, "mutation", 65_536);
+    assert(
+      statement.hasReturning === true,
+      `expected hasReturning true for: ${sql}`,
+    );
+  }
+
+  const plainInsert = await validateAgentSql(
+    `insert into todos(id) values (1)`,
+    "mutation",
+    65_536,
+  );
+  assert(plainInsert.hasReturning === false);
+
+  const select = await validateAgentSql(`select 1`, "query", 65_536);
+  assert(select.hasReturning === false);
+});
+
+Deno.test("policy extracts exactly one statement and resists piggybacking", async () => {
+  // Semicolon inside a string literal does not split the statement.
+  const literal = await validateAgentSql(`select ';' as a`, "query", 65_536);
+  assert(literal.text === `select ';' as a`, `got: ${literal.text}`);
+
+  // Semicolon inside a dollar-quoted body does not split the statement.
+  const dollar = await validateAgentSql(
+    `select $tag$a;b;c$tag$ as a`,
+    "query",
+    65_536,
+  );
+  assert(dollar.text === `select $tag$a;b;c$tag$ as a`, `got: ${dollar.text}`);
+
+  // A trailing line comment stays attached to the single statement (Postgres
+  // ignores it); crucially it is not split into a second statement.
+  const comment = await validateAgentSql(
+    `select 1 as a -- trailing comment`,
+    "query",
+    65_536,
+  );
+  assert(comment.kind === "select");
+  assert(comment.text.startsWith(`select 1 as a`), `got: ${comment.text}`);
+  assert(!comment.text.includes(";"));
+
+  // Trailing whitespace (and a trailing semicolon) is trimmed.
+  const trailing = await validateAgentSql(
+    `select 1 as a;   \n\t  `,
+    "query",
+    65_536,
+  );
+  assert(trailing.text === `select 1 as a`, `got: ${trailing.text}`);
+  assert(!trailing.text.endsWith(";"));
+
+  // Two real statements are rejected as multiple statements.
+  await assertRejected(`select 1; select 2`, "query", "SQL_MULTIPLE_STATEMENTS");
+});
+
+Deno.test("policy fails closed on malformed or unparseable SQL", async () => {
+  for (
+    const sql of [
+      `select from`,
+      `this is not sql at all`,
+      `select 1 (((`,
+      ``,
+    ]
+  ) {
+    await assertRejected(sql, "query", "SQL_PARSE_ERROR");
+  }
+});
+
+Deno.test("policy fails closed (no crash) on deeply nested expressions within the byte limit", async () => {
+  // ~4 KB of left-associative additions — well within the 64 KB limit. This
+  // must fail closed with SQL_PARSE_ERROR and never let a RangeError escape as
+  // a misleading DATABASE_ERROR (covers the inspectAst depth guard and the
+  // parser's own fail-closed behavior).
+  const deepAddition = "select 1" + "+1".repeat(2_000);
+  assert(new TextEncoder().encode(deepAddition).byteLength < 65_536);
+  await assertRejected(deepAddition, "query", "SQL_PARSE_ERROR");
+
+  // Thousands of nested parentheses, also within the byte limit, must not hang
+  // or crash; they too fail closed as a parse error.
+  const deepParens = "select " + "(".repeat(10_000) + "1" + ")".repeat(10_000);
+  assert(new TextEncoder().encode(deepParens).byteLength < 65_536);
+  await assertRejected(deepParens, "query", "SQL_PARSE_ERROR");
+});

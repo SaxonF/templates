@@ -1,6 +1,20 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Check, Database } from 'lucide-react'
 import { motion } from 'motion/react'
 
+import { MessageAnimated } from '@/components/message-animated'
+import { Attachment, AttachmentContent, AttachmentMedia, AttachmentTitle } from '@/components/ui/attachment'
+import { Bubble, BubbleContent } from '@/components/ui/bubble'
+import { ShimmerMarker } from '@/components/ui/marker'
+import { Message, MessageContent } from '@/components/ui/message'
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from '@/components/ui/message-scroller'
 import { cn } from '@/lib/utils'
 
 type ActiveView = 'agent' | 'database'
@@ -64,91 +78,134 @@ function HeroCard({ children, className }: { children: ReactNode; className?: st
   )
 }
 
+function TaskRowsAttachment({
+  rows,
+  label = 'tasks',
+}: {
+  rows: Array<{ title: string; assignee: string; due: string; status: string }>
+  label?: string
+}) {
+  return (
+    <Bubble variant="outline" className="max-w-[94%] w-full">
+      <BubbleContent className="w-full max-w-full p-0">
+        <div className="overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2">
+            <div className="h-[13px] w-[13px] rounded-[3px] bg-primary opacity-90" />
+            <span className="text-[12.5px] font-semibold text-[#e9ebef]">{label}</span>
+            <span className="text-[11.5px] text-[#7d828b]">
+              {rows.length} {rows.length === 1 ? 'row' : 'rows'}
+            </span>
+          </div>
+          {rows.map((row) => (
+            <div
+              key={row.title}
+              className="grid grid-cols-[minmax(0,1fr)_62px_56px_60px] items-center gap-2 border-b border-white/[0.045] px-3 py-2 last:border-b-0"
+            >
+              <span className="truncate text-[12.5px] text-[#d6dae0]">{row.title}</span>
+              <span className="font-mono text-[11.5px] text-[#8a8f98]">{row.assignee}</span>
+              <span className="font-mono text-[11.5px] text-[#6b7079]">{row.due}</span>
+              <span className="flex items-center gap-1 text-[11px] text-[#9aa0a8]">
+                <span className={cn('h-[5px] w-[5px] rounded-full', statusColor(row.status))} />
+                {row.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      </BubbleContent>
+    </Bubble>
+  )
+}
+
 function AgentPanel({
   feed,
   typing,
-  scrollRef,
 }: {
   feed: ChatMessage[]
   typing: boolean
-  scrollRef: RefObject<HTMLDivElement | null>
 }) {
   return (
-    <>
-      <div
-        ref={scrollRef}
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-[18px] pt-5 pb-1.5"
-      >
-        {feed.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              'animate-fade-in flex',
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            )}
-          >
-            {message.kind === 'text' && message.role === 'user' ? (
-              <div className="max-w-[82%] rounded-[15px] rounded-br-[4px] bg-white/10 px-[15px] py-2.5 text-[15px] leading-[1.4] text-white">
-                {message.text}
-              </div>
-            ) : null}
-
-            {message.kind === 'text' && message.role === 'agent' ? (
-              <div className="max-w-[84%] text-[14.5px] leading-[1.5] text-[#b4b9c1]">{message.text}</div>
-            ) : null}
-
-            {message.kind === 'rows' && message.rows ? (
-              <div className="max-w-[94%] w-full overflow-hidden rounded-[11px] border border-white/[0.08] bg-white/[0.05]">
-                <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2">
-                  <div className="h-[13px] w-[13px] rounded-[3px] bg-primary opacity-90" />
-                  <span className="text-[12.5px] font-semibold text-[#e9ebef]">tasks</span>
-                  <span className="text-[11.5px] text-[#7d828b]">
-                    {message.rows.length} {message.rows.length === 1 ? 'row' : 'rows'}
-                  </span>
-                </div>
-                {message.rows.map((row) => (
-                  <div
-                    key={row.title}
-                    className="grid grid-cols-[minmax(0,1fr)_62px_56px_60px] items-center gap-2 border-b border-white/[0.045] px-3 py-2 last:border-b-0"
-                  >
-                    <span className="truncate text-[12.5px] text-[#d6dae0]">{row.title}</span>
-                    <span className="font-mono text-[11.5px] text-[#8a8f98]">{row.assignee}</span>
-                    <span className="font-mono text-[11.5px] text-[#6b7079]">{row.due}</span>
-                    <span className="flex items-center gap-1 text-[11px] text-[#9aa0a8]">
-                      <span className={cn('h-[5px] w-[5px] rounded-full', statusColor(row.status))} />
-                      {row.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {message.kind === 'result' ? (
-              <div className="inline-flex max-w-[94%] items-center gap-2.5 rounded-[11px] border border-white/[0.09] bg-white/[0.05] px-[15px] py-2.5">
-                <span className="flex h-[19px] w-[19px] flex-none items-center justify-center rounded-full bg-primary text-xs font-bold text-black">
-                  ✓
-                </span>
-                <span className="text-sm text-[#e5e7eb]">{message.text}</span>
-                {message.latency ? (
-                  <span className="font-mono text-xs text-[#6b7079]">· {message.latency}</span>
+    <MessageScrollerProvider autoScroll>
+      <div className="flex h-full min-h-0 flex-col">
+        <MessageScroller className="min-h-0 flex-1">
+          <MessageScrollerViewport>
+            <MessageScrollerContent className="gap-3 px-[18px] pt-4 pb-0">
+              {feed.map((message) => (
+              <MessageAnimated
+                key={message.id}
+                message={{
+                  id: String(message.id),
+                  role: message.role === 'user' ? 'user' : 'assistant',
+                  text: message.text,
+                }}
+                scrollAnchor={message.role === 'user'}
+              >
+                {message.kind === 'text' && message.role === 'user' ? (
+                  <Message align="end">
+                    <MessageContent>
+                      <Bubble align="end">
+                        <BubbleContent className="rounded-br-md text-[15px] leading-[1.4]">
+                          {message.text}
+                        </BubbleContent>
+                      </Bubble>
+                    </MessageContent>
+                  </Message>
                 ) : null}
-              </div>
+
+                {message.kind === 'text' && message.role === 'agent' ? (
+                  <Message align="start">
+                    <MessageContent>
+                      <Bubble variant="ghost">
+                        <BubbleContent className="text-[14.5px] leading-[1.5] text-[#b4b9c1]">
+                          {message.text}
+                        </BubbleContent>
+                      </Bubble>
+                    </MessageContent>
+                  </Message>
+                ) : null}
+
+                {message.kind === 'rows' && message.rows ? (
+                  <Message align="start">
+                    <MessageContent>
+                      <TaskRowsAttachment rows={message.rows} />
+                    </MessageContent>
+                  </Message>
+                ) : null}
+
+                {message.kind === 'result' ? (
+                  <Message align="start">
+                    <MessageContent>
+                      <Attachment className="max-w-[94%] border-white/[0.09] bg-white/[0.05]">
+                        <AttachmentMedia className="h-[19px] w-[19px] rounded-full bg-primary text-xs font-bold text-black">
+                          <Check className="size-3.5" strokeWidth={3} />
+                        </AttachmentMedia>
+                        <AttachmentContent>
+                          <AttachmentTitle className="text-sm text-[#e5e7eb]">
+                            {message.text}
+                            {message.latency ? (
+                              <span className="ml-1 font-mono text-xs font-normal text-[#6b7079]">
+                                · {message.latency}
+                              </span>
+                            ) : null}
+                          </AttachmentTitle>
+                        </AttachmentContent>
+                      </Attachment>
+                    </MessageContent>
+                  </Message>
+                ) : null}
+              </MessageAnimated>
+            ))}
+
+            {typing ? (
+              <MessageScrollerItem>
+                <ShimmerMarker>Thinking…</ShimmerMarker>
+              </MessageScrollerItem>
             ) : null}
-          </div>
-        ))}
+          </MessageScrollerContent>
+        </MessageScrollerViewport>
+        <MessageScrollerButton />
+      </MessageScroller>
 
-        {typing ? (
-          <div className="animate-fade-in flex justify-start">
-            <div className="flex items-center gap-1 rounded-[14px] bg-white/[0.06] px-[15px] py-3">
-              <span className="h-1.5 w-1.5 animate-blink rounded-full bg-[#8a8f98]" />
-              <span className="h-1.5 w-1.5 animate-blink rounded-full bg-[#8a8f98] [animation-delay:0.2s]" />
-              <span className="h-1.5 w-1.5 animate-blink rounded-full bg-[#8a8f98] [animation-delay:0.4s]" />
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="px-3.5 pt-3 pb-3.5">
+      <div className="shrink-0 border-t border-white/[0.07] px-3.5 pb-3.5">
         <div className="flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-2">
           <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-white/[0.14] text-[17px] text-[#8a8f98]">
             +
@@ -160,7 +217,8 @@ function AgentPanel({
           </span>
         </div>
       </div>
-    </>
+      </div>
+    </MessageScrollerProvider>
   )
 }
 
@@ -169,28 +227,13 @@ function DatabasePanel({
   dbScrollRef,
 }: {
   dbHi: number
-  dbScrollRef: RefObject<HTMLDivElement | null>
+  dbScrollRef: React.RefObject<HTMLDivElement | null>
 }) {
   return (
     <>
       <div className="flex items-center justify-between bg-[#171717] px-4 py-4">
         <div className="flex items-center gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            className="text-primary"
-            aria-hidden="true"
-          >
-            <path d="M12 3v18" />
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M3 9h18" />
-            <path d="M3 15h18" />
-          </svg>
+          <Database className="h-4 w-4 text-primary" strokeWidth={1.5} aria-hidden="true" />
           <span className="text-sm font-semibold">tasks</span>
         </div>
         <span className="text-xs text-[#6b7079]">{DB_ROWS.length} rows</span>
@@ -235,7 +278,6 @@ export function HeroDemo() {
   const [feed, setFeed] = useState<ChatMessage[]>([])
   const [typing, setTyping] = useState(false)
   const [dbHi, setDbHi] = useState(0)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const dbScrollRef = useRef<HTMLDivElement>(null)
 
   const agentFocused = activeView === 'agent'
@@ -244,11 +286,6 @@ export function HeroDemo() {
     const interval = window.setInterval(() => setDbHi((value) => (value + 1) % DB_ROWS.length), 1300)
     return () => window.clearInterval(interval)
   }, [])
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [feed, typing])
 
   useEffect(() => {
     if (activeView !== 'database') return
@@ -382,7 +419,7 @@ export function HeroDemo() {
           transition={stackTransition}
         >
           <HeroCard className="shadow-[0_28px_90px_rgba(0,0,0,0.55)]">
-            <AgentPanel feed={feed} typing={typing} scrollRef={scrollRef} />
+            <AgentPanel feed={feed} typing={typing} />
           </HeroCard>
         </motion.div>
       </div>

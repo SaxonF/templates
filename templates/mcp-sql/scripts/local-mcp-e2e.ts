@@ -281,7 +281,40 @@ try {
       ...await validateIdentity(mcpUrl, identity),
     });
   }
-  console.log(JSON.stringify({ ok: true, evidence }, null, 2));
+
+  // Auth boundary: a garbage bearer token must be rejected with HTTP 401 before
+  // any SQL runs. JWT verification lives in mcp-server/auth.ts; this only asserts
+  // the boundary holds end-to-end, it does not reimplement verification. A raw
+  // POST is used (not the MCP client) so the transport's session handshake never
+  // gets a chance to start.
+  const unauthorized = await fetch(mcpUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      Authorization: "Bearer not-a-real-jwt.garbage.token",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {},
+    }),
+  });
+  await unauthorized.body?.cancel();
+  if (unauthorized.status !== 401) {
+    throw new Error(
+      `Expected garbage bearer token to be rejected with 401, got ${unauthorized.status}.`,
+    );
+  }
+
+  console.log(
+    JSON.stringify(
+      { ok: true, authBoundary: { garbageTokenStatus: 401 }, evidence },
+      null,
+      2,
+    ),
+  );
 } finally {
   await admin.unsafe(`drop schema if exists ${schema} cascade`).catch(
     (error) => {

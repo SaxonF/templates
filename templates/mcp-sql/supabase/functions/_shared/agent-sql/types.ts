@@ -33,6 +33,13 @@ export type ValidatedStatement = {
   kind: StatementKind;
   text: string;
   parserVersion: number;
+  /**
+   * True when the root data-modifying statement carries a non-empty
+   * `RETURNING` clause (INSERT/UPDATE/DELETE, and MERGE on PG17+). Always
+   * `false` for SELECT/query statements. Consumed by the runtime to cap the
+   * rows a mutation streams back to the client.
+   */
+  hasReturning: boolean;
 };
 
 export interface TrustedTransaction {

@@ -22,6 +22,22 @@ const MUTATION_NODES = new Set([
 
 const QUERY_FORBIDDEN_NODES = new Set(["IntoClause", "LockingClause"]);
 
+// Statement bodies whose root carries a top-level RETURNING clause. MERGE is
+// included for PG17 servers, where MERGE supports RETURNING; older parser
+// builds simply never expose a populated returningList for it.
+const RETURNING_NODES = new Set([
+  "InsertStmt",
+  "UpdateStmt",
+  "DeleteStmt",
+  "MergeStmt",
+]);
+
+// Upper bound on AST recursion in inspectAst. Real SQL within the 64 KB input
+// limit nests far shallower than this; the guard only trips on pathological
+// nesting, where it fails closed with SQL_PARSE_ERROR instead of letting a raw
+// RangeError (stack overflow) escape and be mislabeled as a DATABASE_ERROR.
+const MAX_AST_DEPTH = 2_000;
+
 const FORBIDDEN_FUNCTIONS = new Set([
   "set_config",
   "pg_advisory_lock",
@@ -84,11 +100,23 @@ function functionName(funcCall: unknown): string | null {
   return stringNodeValue(names[names.length - 1])?.toLowerCase() ?? null;
 }
 
-function inspectAst(value: unknown, mode: SqlMode, isRoot = false): void {
+function inspectAst(
+  value: unknown,
+  mode: SqlMode,
+  isRoot = false,
+  depth = 0,
+): void {
   if (!value || typeof value !== "object") return;
 
+  if (depth > MAX_AST_DEPTH) {
+    throw new AgentSqlError(
+      "SQL_PARSE_ERROR",
+      "SQL nesting is too deep to validate.",
+    );
+  }
+
   if (Array.isArray(value)) {
-    for (const child of value) inspectAst(child, mode);
+    for (const child of value) inspectAst(child, mode, false, depth + 1);
     return;
   }
 
@@ -131,7 +159,17 @@ function inspectAst(value: unknown, mode: SqlMode, isRoot = false): void {
     }
   }
 
-  for (const child of Object.values(record)) inspectAst(child, mode);
+  for (const child of Object.values(record)) {
+    inspectAst(child, mode, false, depth + 1);
+  }
+}
+
+function rootHasReturning(rootTag: string, root: Record<string, unknown>): boolean {
+  if (!RETURNING_NODES.has(rootTag)) return false;
+  const body = root[rootTag];
+  if (!body || typeof body !== "object") return false;
+  const returningList = (body as Record<string, unknown>).returningList;
+  return Array.isArray(returningList) && returningList.length > 0;
 }
 
 function statementText(
@@ -226,5 +264,6 @@ export async function validateAgentSql(
     kind,
     text: statementText(sql, statements[0]),
     parserVersion: parsed.version ?? 17_0000,
+    hasReturning: rootHasReturning(rootTag, root),
   };
 }

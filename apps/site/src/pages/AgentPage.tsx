@@ -1,10 +1,20 @@
-import { Bot, CornerDownLeft, Loader2 } from 'lucide-react'
+import { ArrowUp, Bot } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { AuthGate } from '@/components/layout/AuthGate'
 import { PageIntro, PageLayout } from '@/components/layout/PageLayout'
 import { PageShell } from '@/components/layout/PageShell'
+import { MessageAnimated } from '@/components/message-animated'
 import { Button } from '@/components/ui/button'
+import { ShimmerMarker, Marker, MarkerContent } from '@/components/ui/marker'
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from '@/components/ui/message-scroller'
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/lib/config'
 import { getClient } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -22,6 +32,12 @@ const SYSTEM_PROMPT = [
   'After making a change, confirm concisely what you did. Ask a brief clarifying question only when a request is genuinely ambiguous.',
 ].join(' ')
 
+type ChatMessage = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export function AgentPage() {
   return (
     <AuthGate activePage="agent">
@@ -36,22 +52,32 @@ export function AgentPage() {
 
 function AgentContent() {
   const [message, setMessage] = useState('')
-  const [lastPrompt, setLastPrompt] = useState('')
-  const [response, setResponse] = useState('')
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Keep the server-assigned session so follow-up messages share history and memory.
   const sessionIdRef = useRef<string | null>(null)
+  const messageIdRef = useRef(0)
+
+  function nextMessageId() {
+    messageIdRef.current += 1
+    return `msg-${messageIdRef.current}`
+  }
 
   async function send() {
     const prompt = message.trim()
     if (!prompt || pending) return
 
+    const userMessageId = nextMessageId()
+    const assistantMessageId = nextMessageId()
+
     setPending(true)
     setError(null)
-    setResponse('')
-    setLastPrompt(prompt)
     setMessage('')
+    setMessages((current) => [
+      ...current,
+      { id: userMessageId, role: 'user', content: prompt },
+      { id: assistantMessageId, role: 'assistant', content: '' },
+    ])
 
     try {
       const { data, error: sessionError } = await getClient().auth.getSession()
@@ -91,9 +117,14 @@ function AgentContent() {
         const { done, value } = await reader.read()
         if (done) break
         text += decoder.decode(value, { stream: true })
-        setResponse(text)
+        setMessages((current) =>
+          current.map((entry) =>
+            entry.id === assistantMessageId ? { ...entry, content: text } : entry
+          )
+        )
       }
     } catch (caught) {
+      setMessages((current) => current.filter((entry) => entry.id !== assistantMessageId))
       setError(caught instanceof Error ? caught.message : 'Unable to reach the agent.')
     } finally {
       setPending(false)
@@ -106,6 +137,9 @@ function AgentContent() {
       void send()
     }
   }
+
+  const hasMessages = messages.length > 0
+  const isStreaming = pending && messages.some((entry) => entry.role === 'assistant' && entry.content)
 
   return (
     <PageLayout
@@ -122,69 +156,96 @@ function AgentContent() {
         </>
       }
       panel={
-        <div className="flex h-[360px] flex-col overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#171717] sm:h-[420px]">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-            {response ? (
-              <p className="text-sm leading-6 whitespace-pre-wrap text-[#d6dae0]">{response}</p>
-            ) : error ? (
-              <p className="text-sm leading-6 text-destructive" role="alert">
-                {error}
-              </p>
-            ) : (
-              <div className="grid h-full place-items-center text-center">
-                <div className="grid justify-items-center gap-2">
-                  <div
-                    aria-hidden="true"
-                    className="grid h-11 w-11 place-items-center rounded-[10px] border border-white/[0.08] bg-white/[0.04] text-[#6b7079]"
-                  >
-                    {pending ? (
-                      <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.5} />
-                    ) : (
-                      <Bot className="h-6 w-6" strokeWidth={1.5} />
-                    )}
-                  </div>
-                  <p className="mt-1 text-sm font-medium text-[#d6dae0]">
-                    {pending ? 'Thinking…' : 'Ask the agent'}
-                  </p>
-                  {pending ? (
-                    <p className="max-w-[18rem] truncate text-sm text-muted-foreground">
-                      {lastPrompt}
-                    </p>
-                  ) : (
-                    <p className="max-w-[18rem] text-sm leading-6 text-[#6b7079]">
-                      Try “List my tasks” or “Create a task to ship the agent page.”
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+        <MessageScrollerProvider autoScroll>
+          <div className="flex h-[360px] flex-col overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#171717] sm:h-[420px]">
+            <MessageScroller className="min-h-0 flex-1">
+              <MessageScrollerViewport>
+                {hasMessages ? (
+                  <MessageScrollerContent aria-busy={pending} className="gap-3 px-4 pt-4 pb-0">
+                    {messages.map((entry) => {
+                      if (entry.role === 'assistant' && !entry.content) return null
 
-          <div className="shrink-0 border-t border-white/[0.07] p-3">
-            <div className="flex items-end gap-2">
-              <textarea
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                onKeyDown={onKeyDown}
-                rows={1}
-                placeholder="Message the agent…"
-                disabled={pending}
-                className={cn(
-                  'max-h-28 min-h-[2.5rem] w-full resize-none rounded-lg border border-border bg-white/[0.04] px-2.5 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-white/[0.22] focus-visible:bg-white/[0.06] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50'
+                      return (
+                        <MessageAnimated
+                          key={entry.id}
+                          message={{
+                            id: entry.id,
+                            role: entry.role,
+                            content: entry.content,
+                          }}
+                          scrollAnchor={entry.role === 'user'}
+                        />
+                      )
+                    })}
+
+                    {pending && !isStreaming ? (
+                      <MessageScrollerItem>
+                        <ShimmerMarker>Thinking…</ShimmerMarker>
+                      </MessageScrollerItem>
+                    ) : null}
+
+                    {isStreaming ? (
+                      <MessageScrollerItem>
+                        <ShimmerMarker>Generating response…</ShimmerMarker>
+                      </MessageScrollerItem>
+                    ) : null}
+
+                    {error ? (
+                      <MessageScrollerItem>
+                        <Marker>
+                          <MarkerContent className="text-destructive" role="alert">
+                            {error}
+                          </MarkerContent>
+                        </Marker>
+                      </MessageScrollerItem>
+                    ) : null}
+                  </MessageScrollerContent>
+                ) : (
+                  <div className="grid h-full place-items-center px-4 py-4 text-center">
+                    <div className="grid justify-items-center gap-2">
+                      <div
+                        aria-hidden="true"
+                        className="grid h-11 w-11 place-items-center rounded-[10px] border border-white/[0.08] bg-white/[0.04] text-[#6b7079]"
+                      >
+                        <Bot className="h-6 w-6" strokeWidth={1.5} />
+                      </div>
+                      <p className="mt-1 text-sm font-medium text-[#d6dae0]">Ask the agent</p>
+                      <p className="max-w-[18rem] text-sm leading-6 text-[#6b7079]">
+                        Try “List my tasks” or “Create a task to ship the agent page.”
+                      </p>
+                    </div>
+                  </div>
                 )}
-              />
-              <Button
-                type="button"
-                size="icon"
-                onClick={() => void send()}
-                disabled={pending || !message.trim()}
-                aria-label="Send message"
-              >
-                <CornerDownLeft className="h-4 w-4" />
-              </Button>
+              </MessageScrollerViewport>
+              <MessageScrollerButton />
+            </MessageScroller>
+
+            <div className="shrink-0 border-t border-white/[0.07] p-3">
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  onKeyDown={onKeyDown}
+                  rows={1}
+                  placeholder="Message the agent…"
+                  disabled={pending}
+                  className={cn(
+                    'max-h-28 min-h-[2.5rem] w-full resize-none rounded-lg border border-border bg-white/[0.04] px-2.5 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-white/[0.22] focus-visible:bg-white/[0.06] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50'
+                  )}
+                />
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  onClick={() => void send()}
+                  disabled={pending || !message.trim()}
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </MessageScrollerProvider>
       }
     />
   )

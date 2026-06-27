@@ -21,14 +21,24 @@ Access is bounded by several independent layers (no single one is the boundary):
    functions.
 3. **Transaction-local identity** — each statement runs inside one transaction
    that sets `role`, `request.jwt.claims`, and `search_path` with `SET LOCAL`,
-   then attests and re-verifies the context before commit.
+   then attests and re-verifies the context before commit. Each request also
+   reserves its connection and runs `discard all` before the transaction, so a
+   session-level GUC, advisory lock, temp table, or cursor left by a prior
+   request's function body cannot leak across pooled requests.
 4. **Resource limits** — statement size, row count, result bytes, statement and
-   lock timeouts (all configurable).
+   lock timeouts (all configurable). A `RETURNING` mutation is capped at the
+   database, not in client memory: the write runs in full while the returned rows
+   are bounded and `rowCount` still reports the true affected-row count.
 5. **Supabase RLS** — the final boundary; agent SQL inherits exactly the
    `authenticated` grants and policies you define.
 
+Catalog tools share one disclosure surface: `describe_table` and
+`describe_function` exclude the same internal schemas (`auth`, `vault`,
+`storage`, …) that `list_database_objects` hides, in addition to privilege
+filtering.
+
 See [`_shared/agent-sql/README.md`](supabase/functions/_shared/agent-sql/README.md)
-for the full security contract.
+for the full security contract, threat-model table, and documented limitations.
 
 ## Composition
 

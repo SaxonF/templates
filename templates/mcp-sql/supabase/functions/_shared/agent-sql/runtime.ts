@@ -68,6 +68,10 @@ export interface AgentSqlRuntime<Principal> {
   close(): Promise<void>;
 }
 
+// Column injected by the mutation wrapper to carry the true affected-row count
+// alongside the (DB-capped) returned rows. Stripped before rows reach the client.
+const MUTATION_TOTAL_COLUMN = "__agent_total";
+
 function validateLimits(input: RuntimeLimits): RuntimeLimits {
   for (const [name, value] of Object.entries(input)) {
     if (!Number.isInteger(value) || value <= 0) {
@@ -80,7 +84,8 @@ function validateLimits(input: RuntimeLimits): RuntimeLimits {
   return input;
 }
 
-function boundedRows(
+// Exported for testing.
+export function boundedRows(
   input: Record<string, unknown>[],
   limits: RuntimeLimits,
 ): { rows: Record<string, unknown>[]; truncated: boolean } {
@@ -101,8 +106,25 @@ function boundedRows(
   return { rows, truncated };
 }
 
-function queryText(statement: ValidatedStatement, maxRows: number): string {
+// Exported for testing.
+export function queryText(statement: ValidatedStatement, maxRows: number): string {
   return `select *\nfrom (\n${statement.text}\n) as "__agent_query"\nlimit ${
+    maxRows + 1
+  }`;
+}
+
+// Wraps a RETURNING mutation so the database, not the client, caps the rows
+// streamed back. `count(*) over ()` yields the true affected-row count on every
+// row (constant), and the `limit maxRows + 1` keeps at most one row past the cap
+// so the runtime can flag truncation. The mutation runs inside the CTE, so its
+// writes still execute in full — only the rows returned to the client are bounded.
+//
+// Exported for testing.
+export function mutationText(
+  statement: ValidatedStatement,
+  maxRows: number,
+): string {
+  return `with __agent_mutation as (\n${statement.text}\n)\nselect *, count(*) over () as ${MUTATION_TOTAL_COLUMN}\nfrom __agent_mutation\nlimit ${
     maxRows + 1
   }`;
 }
@@ -183,9 +205,38 @@ export function createAgentSqlRuntime<Principal, Snapshot>(
       return result;
     };
 
-    return readOnly
-      ? await sql.begin("read only", callback) as T
-      : await sql.begin(callback) as T;
+    // Reserve a dedicated connection and reset its session state with `discard
+    // all` BEFORE opening the transaction. A prior request's function body could
+    // have set a session GUC (e.g. via set_config(k, v, false)) that survives
+    // commit on a pooled connection; `discard all` clears those, plus session
+    // advisory locks, temp tables, and cursors. It must run OUTSIDE any
+    // transaction. The per-tx `SET LOCAL` statement/lock timeouts inside the
+    // callback still apply after the discard. The connection is released back to
+    // the pool in `finally`, whether the transaction commits, rolls back, or throws.
+    const reserved = await sql.reserve();
+    try {
+      await reserved.unsafe("discard all");
+      // postgres@3.4.7's reserved connection exposes `.unsafe()`/`.release()` but
+      // not `.begin()` (that lives only on the pool handle), so drive the single
+      // flat transaction manually. Every statement runs on this one pinned
+      // connection, so they all share the transaction opened here.
+      await reserved.unsafe(readOnly ? "begin read only" : "begin");
+      try {
+        const result = await callback(reserved as unknown as Sql);
+        await reserved.unsafe("commit");
+        return result;
+      } catch (error) {
+        try {
+          await reserved.unsafe("rollback");
+        } catch {
+          // A failed rollback (e.g. a broken connection) must not mask the
+          // original error that aborted the transaction.
+        }
+        throw error;
+      }
+    } finally {
+      reserved.release();
+    }
   }
 
   async function validate(
@@ -223,11 +274,43 @@ export function createAgentSqlRuntime<Principal, Snapshot>(
         principal,
         mode === "query",
         async (_transaction, tx) => {
+          // Mutations with a RETURNING clause are wrapped so the database, not
+          // the client, caps the returned rows while preserving the true
+          // affected-row count (otherwise `delete ... returning *` would
+          // materialize every row in memory before bounding — a memory DoS).
+          const wrapMutation = mode === "mutation" && statement.hasReturning;
           const text = mode === "query"
             ? queryText(statement, limits.maxRows)
+            : wrapMutation
+            ? mutationText(statement, limits.maxRows)
             : statement.text;
           const driverResult = await tx.unsafe(text) as unknown as DriverResult;
           const rawRows = [...driverResult];
+
+          if (wrapMutation) {
+            // `__agent_total` (from `count(*) over ()`) is constant across rows
+            // and equals the true affected-row count; with zero rows returned
+            // the affected count is 0. Strip the synthetic column from every row
+            // before bounding so it never reaches the client.
+            const total = rawRows.length > 0
+              ? Number(rawRows[0][MUTATION_TOTAL_COLUMN] ?? 0)
+              : 0;
+            const strippedRows = rawRows.map((row) => {
+              const { [MUTATION_TOTAL_COLUMN]: _omit, ...rest } = row;
+              return rest;
+            });
+            const bounded = boundedRows(strippedRows, limits);
+            const truncated = bounded.truncated || total > limits.maxRows;
+
+            return {
+              kind: statement.kind,
+              command: driverResult.command ?? statement.kind.toUpperCase(),
+              rowCount: total,
+              rows: bounded.rows,
+              truncated,
+            } satisfies SqlExecutionResult;
+          }
+
           const bounded = boundedRows(rawRows, limits);
           const truncated = bounded.truncated ||
             (mode === "query" && rawRows.length > limits.maxRows);
@@ -299,14 +382,16 @@ export function createAgentSqlRuntime<Principal, Snapshot>(
     describeTable(principal, input) {
       return trustedRead(
         principal,
-        (transaction) => describeTableInTransaction(transaction, input),
+        (transaction) =>
+          describeTableInTransaction(transaction, input, excludedSchemas),
       );
     },
 
     describeFunction(principal, input) {
       return trustedRead(
         principal,
-        (transaction) => describeFunctionInTransaction(transaction, input),
+        (transaction) =>
+          describeFunctionInTransaction(transaction, input, excludedSchemas),
       );
     },
 

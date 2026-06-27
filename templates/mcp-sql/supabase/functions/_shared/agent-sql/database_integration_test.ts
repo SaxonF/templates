@@ -324,9 +324,17 @@ Deno.test({
         );
         throw new Error("Expected hidden mutation context tampering to fail");
       } catch (error) {
+        // The BEFORE UPDATE trigger swaps claims to USER_B, so PostgreSQL
+        // evaluates the RLS WITH CHECK policy with the tampered identity and
+        // rejects the write ("new row violates row-level security policy")
+        // BEFORE the post-statement verify() runs. So the tamper is caught
+        // either by RLS itself (DATABASE_ERROR) or, if it ever slipped past the
+        // write, by verify() (EXECUTION_CONTEXT_CHANGED). Both block the write;
+        // the rollback assertion below is the real guarantee.
         if (
           !(error instanceof AgentSqlError) ||
-          error.code !== "EXECUTION_CONTEXT_CHANGED"
+          (error.code !== "EXECUTION_CONTEXT_CHANGED" &&
+            error.code !== "DATABASE_ERROR")
         ) {
           throw error;
         }

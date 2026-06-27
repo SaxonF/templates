@@ -54,6 +54,63 @@ function fakeTransaction(
   };
 }
 
+/**
+ * A fake transaction that records every (sql, parameters) pair it receives and
+ * echoes back the exact claims string that `install` asked it to set, so the
+ * post-install context assertion still passes. This lets tests inspect the
+ * literal value handed to `set_config('request.jwt.claims', ...)`.
+ */
+function recordingTransaction(claimsJson: () => string): {
+  transaction: TrustedTransaction;
+  calls: Array<{ sql: string; parameters: readonly unknown[] }>;
+} {
+  const calls: Array<{ sql: string; parameters: readonly unknown[] }> = [];
+  const transaction: TrustedTransaction = {
+    async query<Row>(
+      sql: string,
+      parameters: readonly unknown[] = [],
+    ): Promise<Row[]> {
+      calls.push({ sql, parameters });
+      if (sql.includes("with recursive memberships")) {
+        return [{
+          session_user: "mcp_sql_executor",
+          current_user: "mcp_sql_executor",
+          rolcanlogin: true,
+          rolinherit: false,
+          rolsuper: false,
+          rolcreatedb: false,
+          rolcreaterole: false,
+          rolreplication: false,
+          rolbypassrls: false,
+          memberships: ["authenticated"],
+          has_owned_objects: false,
+          server_version_num: 170_006,
+        }] as Row[];
+      }
+      if (sql.includes("auth.uid()::text")) {
+        // Echo the exact claims string install installed so assertContext passes.
+        return [{
+          session_user: "mcp_sql_executor",
+          current_user: "authenticated",
+          claims: claimsJson(),
+          search_path: "public, extensions",
+          uid: claims.sub,
+        }] as Row[];
+      }
+      return [];
+    },
+  };
+  return { transaction, calls };
+}
+
+function newAdapter() {
+  return createSupabaseRlsAdapter({
+    loginRole: "mcp_sql_executor",
+    databaseRole: "authenticated",
+    searchPath: ["public", "extensions"],
+  });
+}
+
 Deno.test("Supabase adapter installs and verifies an authenticated principal", async () => {
   const adapter = createSupabaseRlsAdapter({
     loginRole: "mcp_sql_executor",
@@ -200,4 +257,102 @@ Deno.test("Supabase adapter rejects invalid principals before database access", 
       assert(error.code === "INVALID_PRINCIPAL");
     }
   }
+});
+
+Deno.test("Supabase adapter accepts a principal whose claims omit exp entirely", () => {
+  const adapter = newAdapter();
+  // `exp` is undefined here; the adapter treats a missing expiry as acceptable
+  // (JWT verification upstream is responsible for expiry — this is belt-and-
+  // suspenders for the `exp` that IS present).
+  const noExp: Record<string, unknown> = {
+    sub: claims.sub,
+    role: "authenticated",
+  };
+  assert(!("exp" in noExp));
+  // Must not throw.
+  adapter.validatePrincipal({ claims: noExp });
+});
+
+Deno.test("Supabase adapter rejects a principal whose exp is exactly now (exp <= now)", () => {
+  const adapter = newAdapter();
+  const now = Math.floor(Date.now() / 1000);
+  try {
+    adapter.validatePrincipal({
+      claims: { sub: claims.sub, role: "authenticated", exp: now },
+    });
+    throw new Error("Expected an exp of exactly now to be rejected");
+  } catch (error) {
+    assert(error instanceof AgentSqlError);
+    assert(error.code === "INVALID_PRINCIPAL");
+  }
+});
+
+Deno.test("Supabase adapter rejects principals with a wrong role, non-UUID sub, or non-object claims", () => {
+  const adapter = newAdapter();
+
+  const cases: unknown[] = [
+    // role must be exactly "authenticated".
+    { sub: claims.sub, role: "anon", exp: claims.exp },
+    { sub: claims.sub, role: "service_role", exp: claims.exp },
+    // sub must be a UUID.
+    { sub: "not-a-uuid", role: "authenticated", exp: claims.exp },
+    { sub: 12345, role: "authenticated", exp: claims.exp },
+    // claims must be a non-null, non-array object.
+    null,
+    undefined,
+    [{ sub: claims.sub, role: "authenticated" }],
+    "a string",
+    42,
+  ];
+
+  for (const invalidClaims of cases) {
+    try {
+      adapter.validatePrincipal({ claims: invalidClaims as never });
+      throw new Error(
+        `Expected principal validation to fail: ${JSON.stringify(invalidClaims)}`,
+      );
+    } catch (error) {
+      assert(error instanceof AgentSqlError);
+      assert(
+        error.code === "INVALID_PRINCIPAL",
+        `Expected INVALID_PRINCIPAL, got ${
+          (error as AgentSqlError).code
+        } for ${JSON.stringify(invalidClaims)}`,
+      );
+    }
+  }
+});
+
+Deno.test("Supabase adapter preserves extra/custom claims verbatim in the installed request.jwt.claims", async () => {
+  const adapter = newAdapter();
+  const customClaims = {
+    sub: claims.sub,
+    role: "authenticated",
+    exp: Math.floor(Date.now() / 1000) + 3_600,
+    app_metadata: { provider: "email", tenant: "acme" },
+    tenant_id: "tenant-42",
+    user_metadata: { name: "Ada" },
+  };
+  const expectedClaimsJson = JSON.stringify(customClaims);
+
+  const { transaction, calls } = recordingTransaction(() => expectedClaimsJson);
+  const snapshot = await adapter.install(transaction, { claims: customClaims });
+
+  // The snapshot the runtime re-verifies against must carry the exact string.
+  assert(snapshot.claimsJson === expectedClaimsJson);
+
+  // Find the set_config('request.jwt.claims', $1, true) call and inspect $1.
+  const claimsCall = calls.find((call) =>
+    call.sql.includes("request.jwt.claims")
+  );
+  assert(claimsCall, "Expected install to call set_config(request.jwt.claims)");
+  const installedClaims = claimsCall.parameters[0];
+  assert(typeof installedClaims === "string");
+
+  // The literal value handed to set_config must contain every custom claim verbatim.
+  assert(installedClaims === expectedClaimsJson);
+  assert(installedClaims.includes(`"tenant_id":"tenant-42"`));
+  assert(installedClaims.includes(`"app_metadata":{"provider":"email"`));
+  assert(installedClaims.includes(`"tenant":"acme"`));
+  assert(installedClaims.includes(`"user_metadata":{"name":"Ada"}`));
 });

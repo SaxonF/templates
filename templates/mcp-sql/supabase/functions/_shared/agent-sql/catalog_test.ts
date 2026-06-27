@@ -135,7 +135,7 @@ Deno.test("catalog describe helpers default schema and return definitions", asyn
     { table: "todos" },
   );
   assertEquals(table, { schema: "public", name: "todos" });
-  assertEquals(tableQueries[0].parameters, ["public", "todos"]);
+  assertEquals(tableQueries[0].parameters, ["public", "todos", []]);
 
   const functionQueries: RecordedQuery[] = [];
   const functions = await describeFunction(
@@ -157,5 +157,25 @@ Deno.test("catalog describe helpers default schema and return definitions", asyn
     security_warning:
       "This function runs with its owner privileges; review it before agent use.",
   }]);
-  assertEquals(functionQueries[0].parameters, ["private", "do_work"]);
+  assertEquals(functionQueries[0].parameters, ["private", "do_work", []]);
+});
+
+Deno.test("catalog describe helpers forward excluded schemas as a query parameter", async () => {
+  const tableQueries: RecordedQuery[] = [];
+  const table = await describeTable(
+    fakeTransaction<{ definition: unknown }>([], tableQueries),
+    { table: "users", schema: "auth" },
+    ["auth"],
+  );
+  assertEquals(table, null);
+  assertEquals(tableQueries[0].parameters, ["auth", "users", ["auth"]]);
+
+  const functionQueries: RecordedQuery[] = [];
+  const functions = await describeFunction(
+    fakeTransaction<{ definitions: unknown[] }>([], functionQueries),
+    { name: "uid", schema: "auth" },
+    ["auth"],
+  );
+  assertEquals(functions, []);
+  assertEquals(functionQueries[0].parameters, ["auth", "uid", ["auth"]]);
 });

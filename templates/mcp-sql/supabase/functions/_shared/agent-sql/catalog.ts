@@ -76,6 +76,7 @@ with t as (
   join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = $1
     and c.relname = $2
+    and n.nspname <> all($3::text[])
     and c.relkind in ('r', 'v', 'm', 'p', 'f')
     and has_schema_privilege(n.oid, 'usage')
     and has_table_privilege(c.oid, '${ANY_TABLE_PRIVILEGE}')
@@ -159,6 +160,7 @@ join pg_namespace n on n.oid = p.pronamespace
 join pg_language language on language.oid = p.prolang
 where n.nspname = $1
   and p.proname = $2
+  and n.nspname <> all($3::text[])
   and p.prokind = 'f'
   and has_schema_privilege(n.oid, 'usage')
   and has_function_privilege(p.oid, 'execute')
@@ -275,10 +277,11 @@ export async function listDatabaseObjects(
 export async function describeTable(
   transaction: TrustedTransaction,
   input: DescribeTableInput,
+  excludedSchemas: string[] = [],
 ): Promise<TableDescription | null> {
   const rows = await transaction.query<{ definition: TableDescription }>(
     DESCRIBE_TABLE_SQL,
-    [input.schema ?? "public", input.table],
+    [input.schema ?? "public", input.table, excludedSchemas],
   );
   return rows[0]?.definition ?? null;
 }
@@ -286,10 +289,11 @@ export async function describeTable(
 export async function describeFunction(
   transaction: TrustedTransaction,
   input: DescribeFunctionInput,
+  excludedSchemas: string[] = [],
 ): Promise<FunctionDescription[]> {
   const rows = await transaction.query<{ definitions: FunctionDescription[] }>(
     DESCRIBE_FUNCTION_SQL,
-    [input.schema ?? "public", input.name],
+    [input.schema ?? "public", input.name, excludedSchemas],
   );
   return rows[0]?.definitions ?? [];
 }
