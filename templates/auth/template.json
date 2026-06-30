@@ -1,0 +1,14 @@
+{
+  "id": "auth",
+  "name": "Auth",
+  "description": "User authentication and authorization service",
+  "category": "Backing Services",
+  "version": "1.0.0",
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/auth",
+  "dependencies": {
+    "required": [
+      "database"
+    ]
+  }
+}

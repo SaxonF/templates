@@ -1,0 +1,9 @@
+{
+  "id": "database",
+  "name": "Database",
+  "description": "PostgreSQL database with schemas and seed support",
+  "category": "Backing Services",
+  "version": "1.0.0",
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/database"
+}

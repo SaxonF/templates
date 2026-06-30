@@ -2,7 +2,7 @@
   "id": "mcp-functions",
   "name": "MCP Functions",
   "description": "Scaffold for exposing named, schema-validated Supabase Edge Functions as MCP tools without a generic function dispatcher",
-  "category": "AI",
+  "category": "MCP Tools",
   "version": "1.0.0",
   "tags": [
     "ai",

@@ -1,8 +1,8 @@
 {
   "id": "headless-app",
   "name": "Headless App",
-  "description": "A composition block: MCP auth, RLS-scoped SQL, and Supabase-native tools for functions, workflows, storage, tenancy, knowledge, and observability",
-  "category": "AI",
+  "description": "A composition block: MCP auth, RLS-scoped SQL, and Supabase-native tools for functions, workflows, storage, tenancy, knowledge, observability, and email",
+  "category": "Core",
   "version": "3.0.0",
   "tags": [
     "ai",
@@ -23,7 +23,8 @@
       "mcp-storage",
       "mcp-tenancy",
       "mcp-knowledge",
-      "mcp-observability"
+      "mcp-observability",
+      "mcp-email"
     ]
   },
   "license": "MIT",

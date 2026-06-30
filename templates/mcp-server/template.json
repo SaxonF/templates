@@ -2,7 +2,7 @@
   "id": "mcp-server",
   "name": "MCP Server",
   "description": "Composable MCP server framework as a Supabase Edge Function: official Streamable HTTP transport, dual OAuth 2.1 + first-party JWT auth, and a tool registry that other templates extend",
-  "category": "AI",
+  "category": "Core",
   "version": "1.0.0",
   "tags": [
     "ai",

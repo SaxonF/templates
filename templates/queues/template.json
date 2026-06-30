@@ -1,0 +1,14 @@
+{
+  "id": "queues",
+  "name": "Queues (pgmq)",
+  "description": "pgmq extension with a default job queue for background processing",
+  "category": "Backing Services",
+  "version": "1.0.0",
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/queues",
+  "dependencies": {
+    "required": [
+      "database"
+    ]
+  }
+}

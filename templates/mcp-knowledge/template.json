@@ -2,7 +2,7 @@
   "id": "mcp-knowledge",
   "name": "MCP Knowledge",
   "description": "MCP tools for ingesting and searching knowledge through the RAG pipeline",
-  "category": "AI",
+  "category": "MCP Tools",
   "version": "1.0.0",
   "tags": [
     "ai",

@@ -1,12 +1,14 @@
 {
   "id": "mcp-sql",
   "name": "MCP SQL",
-  "description": "MCP tool template that gives a connected agent RLS-scoped Postgres access as the signed-in user, via a dedicated unprivileged executor role, a SQL-AST policy, and transaction-local identity",
-  "category": "AI",
+  "description": "Experimental MCP tool template for RLS-scoped agent SQL via a dedicated executor role, SQL-AST policy, and transaction-local identity — prefer supabase-js or typed Edge Function tools for production",
+  "category": "MCP Tools",
   "version": "1.0.0",
+  "stability": "experimental",
   "tags": [
     "ai",
     "agents",
+    "experimental",
     "mcp",
     "postgres",
     "rls",

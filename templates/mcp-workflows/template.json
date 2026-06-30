@@ -2,7 +2,7 @@
   "id": "mcp-workflows",
   "name": "MCP Workflows",
   "description": "MCP tools for enqueueing, inspecting, cancelling, and retrying user-owned durable workflows",
-  "category": "AI",
+  "category": "MCP Tools",
   "version": "1.0.0",
   "tags": [
     "ai",

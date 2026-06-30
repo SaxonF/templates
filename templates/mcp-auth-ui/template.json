@@ -2,7 +2,7 @@
   "id": "mcp-auth-ui",
   "name": "MCP Auth UI",
   "description": "Vanilla front-end for the MCP server's OAuth flow: sign-in, consent, dynamic client management, and a setup wizard served from Supabase Storage / public",
-  "category": "AI",
+  "category": "Core",
   "version": "1.0.0",
   "tags": [
     "ai",

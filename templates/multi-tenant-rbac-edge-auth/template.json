@@ -1,0 +1,15 @@
+{
+  "id": "multi-tenant-rbac-edge-auth",
+  "name": "Edge RBAC Helpers",
+  "description": "Enforce organization RBAC in Edge Functions next to your app code—authorization at the application layer instead of in RLS policies",
+  "category": "Access & Security",
+  "version": "1.0.0",
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/multi-tenant-rbac-edge-auth",
+  "dependencies": {
+    "required": [
+      "multi-tenant-rbac",
+      "functions"
+    ]
+  }
+}

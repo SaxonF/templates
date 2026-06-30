@@ -2,6 +2,8 @@
 
 Adds a Postgres-backed workflow runner for long-running or retryable product work. Use it for imports, exports, document processing, billing reconciliation, AI batch work, or any task that should survive request timeouts.
 
+> **Powers [`mcp-workflows`](../mcp-workflows).** This is a backing service — install the tool pack to let an agent enqueue and inspect workflows.
+
 ## How it works
 
 1. Call `public.enqueue_workflow(...)` to create a workflow run and enqueue it in `pgmq`.

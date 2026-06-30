@@ -14,6 +14,9 @@ import { registerWhoamiTool } from "./whoami.ts";
 // App-owned typed Edge Function tool scaffold.
 import { registerFunctionTools } from "./functions.ts";
 
+// Email tools from the mcp-email template.
+import { registerEmailTools } from "./email.ts";
+
 // SQL tools from the mcp-sql template.
 import {
   registerDescribeFunctionTool,
@@ -55,6 +58,7 @@ export function registerTools(server: McpServer, context: ToolContext): void {
   registerTenancyTools(server, context);
   registerKnowledgeTools(server, context);
   registerObservabilityTools(server, context);
+  registerEmailTools(server, context);
 
   // SQL tools (mcp-sql). The runtime is a module singleton; the principal is
   // the verified claims from the base context.

@@ -1,0 +1,14 @@
+{
+  "id": "api",
+  "name": "Data API",
+  "description": "PostgREST API for database access over HTTP",
+  "category": "Backing Services",
+  "version": "1.0.0",
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/api",
+  "dependencies": {
+    "required": [
+      "database"
+    ]
+  }
+}

@@ -2,7 +2,7 @@
   "id": "mcp-observability",
   "name": "MCP Observability",
   "description": "MCP tools for writing and reading user-scoped app logs plus inspecting failed workflow runs",
-  "category": "AI",
+  "category": "MCP Tools",
   "version": "1.0.0",
   "tags": [
     "ai",

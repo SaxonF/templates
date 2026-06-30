@@ -7,11 +7,13 @@ import { getClient } from '@/lib/supabase'
 
 export type SiteNavVariant = 'landing' | 'minimal' | 'account'
 export type ActivePage = 'agent' | 'clients' | 'setup' | 'tasks'
+export type LandingPage = 'templates' | 'headless-app'
 
 interface SiteNavProps {
   user?: User | null
   variant?: SiteNavVariant
   activePage?: ActivePage
+  landingPage?: LandingPage
 }
 
 function BrandMark({ large = false }: { large?: boolean }) {
@@ -84,19 +86,7 @@ function NavTextButton({
   )
 }
 
-function NavLinkDisabled({ children }: { children: ReactNode }) {
-  return (
-    <span
-      aria-disabled="true"
-      title="Coming soon"
-      className="cursor-not-allowed text-[15px] font-normal text-muted-foreground/50"
-    >
-      {children}
-    </span>
-  )
-}
-
-export function SiteNav({ user, variant = 'account', activePage }: SiteNavProps) {
+export function SiteNav({ user, variant = 'account', activePage, landingPage = 'templates' }: SiteNavProps) {
   async function signOut() {
     await getClient().auth.signOut()
     window.location.assign('/auth/')
@@ -112,8 +102,10 @@ export function SiteNav({ user, variant = 'account', activePage }: SiteNavProps)
               <span className="text-lg">Backplane</span>
             </a>
             <div className="hidden items-center gap-7 lg:flex">
-              <NavLinkDisabled>Templates</NavLinkDisabled>
-              <NavLink href="/" current>
+              <NavLink href="/" current={landingPage === 'templates'}>
+                Templates
+              </NavLink>
+              <NavLink href="/headless-app/" current={landingPage === 'headless-app'}>
                 Headless App
               </NavLink>
               <NavLink href={BACKPLANE_REPOSITORY_URL} target="_blank" rel="noreferrer">

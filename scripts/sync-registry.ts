@@ -23,6 +23,7 @@ interface TemplateSummary {
   description: string
   category: string
   version: string
+  stability?: string
   tags?: string[]
   dependencies?: TemplateDependencies
   defaultEnabled?: boolean
@@ -181,6 +182,7 @@ function summaryFromRegistryItem(item: Record<string, unknown>): TemplateSummary
     description: item.description ?? '',
     category: Array.isArray(item.categories) ? item.categories[0] : meta.category ?? 'Core',
     version: meta.version ?? '1.0.0',
+    stability: readOptionalString(meta, 'stability'),
     tags: meta.tags,
     dependencies:
       meta.dependencies ??
@@ -359,6 +361,7 @@ function templateSummaryToRegistryItem({
     ...(docs ? { docs } : {}),
     meta: {
       version: summary.version,
+      stability: summary.stability,
       defaultEnabled: summary.defaultEnabled,
       tags: summary.tags,
       category: summary.category,
@@ -394,6 +397,7 @@ function parseTemplateSummary(value: unknown): TemplateSummary {
     description: readString(value, 'description'),
     category: readString(value, 'category'),
     version: readString(value, 'version'),
+    stability: readOptionalString(value, 'stability'),
     tags: readOptionalStringArray(value, 'tags'),
     dependencies: parseDependencies(value.dependencies),
     defaultEnabled: typeof value.defaultEnabled === 'boolean' ? value.defaultEnabled : undefined,

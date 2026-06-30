@@ -1,0 +1,24 @@
+{
+  "id": "mcp-email",
+  "name": "MCP Email",
+  "description": "MCP tool pack for sending transactional email: send_email and get_email_status plug into mcp-server, backed by a queued Resend pipeline with a recipient guardrail",
+  "category": "MCP Tools",
+  "version": "1.0.0",
+  "tags": [
+    "ai",
+    "agents",
+    "mcp",
+    "email",
+    "resend",
+    "tools"
+  ],
+  "dependencies": {
+    "required": [
+      "mcp-server",
+      "functions",
+      "queues"
+    ]
+  },
+  "license": "MIT",
+  "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-email"
+}

@@ -2,6 +2,8 @@
 
 A turn-key retrieval-augmented generation setup. POST text to `rag-ingest` and it is chunked, embedded, and stored. POST a question to `rag-query` and the top matching chunks come back, ready to drop into a model prompt.
 
+> **Powers [`mcp-knowledge`](../mcp-knowledge).** This is a backing service — install the tool pack to give an agent retrieval over this pipeline.
+
 ## How it works
 
 1. Client calls `rag-ingest` with `{ source, content, metadata? }`.

@@ -1,11 +1,54 @@
 # MCP SQL
 
+> **Experimental.** This template exposes raw SQL to agents over MCP. The
+> runtime is hardened, but the attack surface is still larger than typed,
+> application-scoped data access. For production apps, prefer
+> [**supabase-js**](https://supabase.com/docs/reference/javascript/introduction)
+> (or named Edge Function tools via [mcp-functions](../mcp-functions)) so agents
+> call fixed, schema-validated operations instead of composing arbitrary SQL.
+> Use mcp-sql when you need ad-hoc querying and accept the security trade-offs
+> below.
+
 A **tool template** for [mcp-server](../mcp-server). It gives whatever agent
 connects to the MCP server **RLS-scoped Postgres access as the signed-in user** —
 without ever handing out a privileged database client.
 
 It adds five tools: `query_sql`, `execute_sql`, `list_database_objects`,
 `describe_table`, `describe_function`.
+
+## Before you enable this
+
+**Prefer supabase-js when you can.** A user-scoped `supabase-js` client talks to
+PostgREST with the caller's JWT — RLS still applies, but there is no arbitrary
+SQL surface. Expose only the tables, views, and RPCs you intend agents to use.
+For imperative workflows (email, billing, exports), register typed tools with
+[mcp-functions](../mcp-functions) instead of letting an agent write SQL.
+
+**If you do enable agent SQL, treat the database schema as trusted code.** The
+AST policy blocks DDL and obvious escape hatches, but it cannot see inside
+functions, views, triggers, operators, or `SECURITY DEFINER` bodies. Real risks
+include:
+
+- **Definer functions and grant hygiene** — `SECURITY DEFINER` routines run as
+  their owner and can bypass RLS; do not grant `EXECUTE` on sensitive functions
+  to `authenticated`, and never let untrusted users `CREATE` on reachable
+  schemas.
+- **Hidden side effects** — trusted functions can read or mutate data the
+  policy cannot predict; review every function executable by the agent role.
+- **Documented parser/runtime limits** — e.g. claim save/restore inside invoker
+  functions, `MERGE … RETURNING` rejected at parse time, and bounded
+  `pg_sleep`/advisory-lock waits. See the
+  [agent-sql threat model](supabase/functions/_shared/agent-sql/README.md#threat-model)
+  and [documented limitations](supabase/functions/_shared/agent-sql/README.md#documented-limitations).
+
+**Operational precautions:**
+
+- Grant `authenticated` only the minimum table privileges; keep RLS strict and
+  tested (including cross-user cases).
+- Rotate `MCP_DB_URL` credentials; scope the executor role to this function only.
+- Start with read-only agent access (`query_sql` / catalog tools) before enabling
+  `execute_sql`.
+- Run the verification steps below before exposing tools to external MCP clients.
 
 ## How it stays safe
 

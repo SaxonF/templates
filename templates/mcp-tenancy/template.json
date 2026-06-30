@@ -2,7 +2,7 @@
   "id": "mcp-tenancy",
   "name": "MCP Tenancy",
   "description": "MCP tools for resolving multi-tenant organization context, memberships, and permissions",
-  "category": "AI",
+  "category": "MCP Tools",
   "version": "1.0.0",
   "tags": [
     "ai",

@@ -2,7 +2,7 @@
   "id": "mcp-storage",
   "name": "MCP Storage",
   "description": "MCP tools for user-scoped Supabase Storage listing, signed URLs, object moves, copies, and deletes",
-  "category": "AI",
+  "category": "MCP Tools",
   "version": "1.0.0",
   "tags": [
     "ai",

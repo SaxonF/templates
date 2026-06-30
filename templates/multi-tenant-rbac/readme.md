@@ -4,6 +4,8 @@ Organization-scoped authorization for SaaS applications. Membership in an organi
 
 Use this template when users can belong to more than one organization and their permissions should be different in each organization.
 
+> **Foundation for [`mcp-tenancy`](../mcp-tenancy).** Agents inherit these tenant-scoped RLS policies; install the tool pack to let an agent resolve the caller's organizations and permissions.
+
 ## Includes
 
 - Organizations and organization memberships

@@ -2,7 +2,7 @@
   "id": "agent",
   "name": "Agent",
   "description": "Persistent streaming AI agent on Supabase (AI SDK 7) with session history, memory, and native MCP tool access over Streamable HTTP",
-  "category": "AI",
+  "category": "Core",
   "version": "1.0.0",
   "tags": [
     "ai",
