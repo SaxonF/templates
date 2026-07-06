@@ -12,16 +12,8 @@
     "functions"
   ],
   "dependencies": {
-    "required": [
-      "database",
-      "api",
-      "auth",
-      "functions"
-    ],
     "optional": [
-      "mcp-server",
-      "ai-vector-search",
-      "ai-automatic-embeddings"
+      "mcp-server"
     ]
   },
   "license": "MIT",

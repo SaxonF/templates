@@ -104,7 +104,7 @@ http://127.0.0.1:54321/functions/v1/mcp-server
 
 ## Dependencies
 
-Requires Supabase **database**, **auth**, and **functions**. Pairs with
+Requires a Supabase project with Edge Functions enabled. Pairs with
 [mcp-auth-ui](../mcp-auth-ui) (OAuth UI), [mcp-sql](../mcp-sql) (database tool),
 and Supabase-native tool packs such as [mcp-workflows](../mcp-workflows),
 [mcp-storage](../mcp-storage), and [mcp-tenancy](../mcp-tenancy). The

@@ -8,8 +8,7 @@
   "repository": "https://github.com/SaxonF/templates/tree/main/templates/multi-tenant-rbac-edge-auth",
   "dependencies": {
     "required": [
-      "multi-tenant-rbac",
-      "functions"
+      "multi-tenant-rbac"
     ]
   }
 }

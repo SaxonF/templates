@@ -13,8 +13,7 @@
   ],
   "dependencies": {
     "required": [
-      "mcp-server",
-      "functions"
+      "mcp-server"
     ]
   },
   "license": "MIT",

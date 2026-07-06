@@ -10,10 +10,13 @@ Adds lightweight operational tools for agents.
 | `list_app_logs` | Read recent user-scoped log events. |
 | `list_failed_workflows` | Inspect recent failed/dead-letter workflow runs. |
 
-This template pairs with **observability-logs** and **mcp-workflows**. It
-does not expose secrets, raw environment variables, or unrestricted platform
-logs.
+## Includes
+
+- `supabase/schemas/observability.sql` — user-scoped `app_logs` table and RLS
+
+This template pairs with **mcp-workflows** for failed-run inspection. It does
+not expose secrets, raw environment variables, or unrestricted platform logs.
 
 ## Dependencies
 
-Requires **mcp-server**, **observability-logs**, and **mcp-workflows**.
+Requires **mcp-server** and **mcp-workflows**.

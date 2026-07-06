@@ -13,8 +13,7 @@
   ],
   "dependencies": {
     "required": [
-      "mcp-server",
-      "durable-workflows"
+      "mcp-server"
     ]
   },
   "license": "MIT",

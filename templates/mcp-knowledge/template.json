@@ -13,8 +13,7 @@
   ],
   "dependencies": {
     "required": [
-      "mcp-server",
-      "ai-rag-pipeline"
+      "mcp-server"
     ]
   },
   "license": "MIT",

@@ -70,8 +70,6 @@ Declarative schemas under `supabase/schemas/` are not applied until a migration 
 2. Run `supabase db diff -f initial_schema`.
 3. Restore `seed.sql` (including the default `role_permissions` rows below), then `supabase db reset`.
 
-See the **database** template readme for details.
-
 ## Adding permissions
 
 Define new values on the `app_permission` enum in `authorization.sql` before using them in policies or seed data:
@@ -203,4 +201,4 @@ For shared TypeScript helpers that call `authorize()` from Edge Functions, add t
 
 ## Dependencies
 
-Requires **database** and **auth**.
+Requires a Supabase project with Auth enabled.

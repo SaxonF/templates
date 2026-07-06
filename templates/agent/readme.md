@@ -17,7 +17,7 @@ Each session belongs to a user. `agent-chat` creates a session when `sessionId` 
 
 ### Memory and recall
 
-Memory rows can store arbitrary JSON payloads. Add the **ai-vector-search** or **ai-automatic-embeddings** template for embedding columns, HNSW indexes, and similarity search helpers. The base agent schema intentionally omits pgvector objects so `supabase db diff` works reliably on fresh projects.
+Memory rows can store arbitrary JSON payloads. The base agent schema intentionally omits pgvector objects so `supabase db diff` works reliably on fresh projects.
 
 ### MCP tools
 
@@ -68,23 +68,14 @@ Tool names are namespaced as `<server>_<tool>` (e.g. `project_list_notes`). Ment
 
 ## Dependencies
 
-**Required**
-
-- `database` — base Supabase project config
-- `api` — REST/GraphQL surface for client access
-- `auth` — user-scoped sessions and RLS
-- `functions` — Edge Functions runtime
-
 **Optional**
 
-- `ai-vector-search` — pgvector similarity over memory embeddings
-- `ai-automatic-embeddings` — keep embeddings in sync via triggers
 - `mcp-server` — Edge Function MCP server the agent connects to automatically when installed; no client-side MCP configuration required
 
 ## Getting started
 
-1. Add this template (and its required dependencies) to your composition.
-2. Generate an initial migration before seeding — see the **database** template readme (`supabase db diff -f initial_schema`, then `supabase db reset`).
+1. Start from a Supabase project with Auth and Edge Functions enabled (`supabase init` / `supabase start`).
+2. Generate an initial migration before seeding (`supabase db diff -f initial_schema`, then `supabase db reset`).
 3. Configure model provider secrets:
    - **Local:** copy `supabase/functions/.env.example` to `supabase/functions/.env` (auto-loaded by `supabase start`). Restart with `supabase stop && supabase start` after changes.
    - **Hosted:** `supabase secrets set OPENAI_API_KEY=...` and optionally `OPENAI_MODEL=gpt-4o-mini`.

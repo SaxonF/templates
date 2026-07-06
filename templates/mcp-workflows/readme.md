@@ -1,6 +1,6 @@
 # MCP Workflows
 
-Adds MCP tools for the **durable-workflows** template.
+Adds MCP tools for durable, user-owned background workflows.
 
 Use these tools when an agent needs to kick off work that should survive request
 timeouts: imports, exports, document processing, billing reconciliation, or AI
@@ -16,12 +16,17 @@ batch jobs.
 | `cancel_workflow` | Mark a queued/running/failed run as cancelled. |
 | `retry_workflow` | Requeue a failed, dead-lettered, or cancelled run. |
 
+## Includes
+
+- `supabase/schemas/workflows.sql` — workflow runs, steps, attempts, and queue helpers
+- `supabase/functions/workflow-worker` — Edge Function worker scaffold
+
 ## Security
 
-The underlying **durable-workflows** schema stores `created_by` ownership,
-uses owner-scoped read policies, and exposes cancel/retry through
-`SECURITY DEFINER` RPCs that check `auth.uid()` and revoke public execution.
+The workflow schema stores `created_by` ownership, uses owner-scoped read
+policies, and exposes cancel/retry through `SECURITY DEFINER` RPCs that check
+`auth.uid()` and revoke public execution.
 
 ## Dependencies
 
-Requires **mcp-server** and **durable-workflows**.
+Requires **mcp-server**.

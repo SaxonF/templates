@@ -6,10 +6,5 @@
   "version": "1.0.0",
   "license": "MIT",
   "repository": "https://github.com/SaxonF/templates/tree/main/templates/multi-tenant-rbac",
-  "dependencies": {
-    "required": [
-      "auth",
-      "database"
-    ]
-  }
+  "dependencies": {}
 }

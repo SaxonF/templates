@@ -1,6 +1,6 @@
 # MCP Knowledge
 
-Adds knowledge ingestion and search tools backed by **ai-rag-pipeline**.
+Adds knowledge ingestion and search tools backed by an included RAG pipeline.
 
 ## Tools
 
@@ -12,6 +12,13 @@ Adds knowledge ingestion and search tools backed by **ai-rag-pipeline**.
 Both tools call the existing `rag-ingest` and `rag-query` Edge Functions through
 the signed-in user's Supabase client.
 
+## Includes
+
+- `supabase/schemas/rag.sql` — documents, chunks, embedding queue, and cron worker
+- `supabase/functions/rag-ingest`, `rag-embed`, `rag-query` — ingest, embed, and search workers
+- `supabase/schemas/storage-rag-ingest.sql` — optional Storage upload path for `.txt`/`.md` files
+- `supabase/functions/rag-file-ingest` — downloads Storage files and inserts them into the RAG tables
+
 ## Dependencies
 
-Requires **mcp-server** and **ai-rag-pipeline**.
+Requires **mcp-server**. Configure `OPENAI_API_KEY` for embedding and query functions.

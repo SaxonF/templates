@@ -14,7 +14,6 @@
   "dependencies": {
     "required": [
       "mcp-server",
-      "observability-logs",
       "mcp-workflows"
     ]
   },

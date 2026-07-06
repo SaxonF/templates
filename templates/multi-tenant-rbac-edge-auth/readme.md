@@ -46,4 +46,4 @@ Pass the active organization on each request (for example `x-organization-id`) s
 
 ## Dependencies
 
-Requires **multi-tenant-rbac** and **functions** (which also pulls in **database**).
+Requires **multi-tenant-rbac**.

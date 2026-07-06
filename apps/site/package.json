@@ -3,12 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.24.0",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "vite build",
     "dev": "vite --host 127.0.0.1 --port 3000",
     "local:mcp:e2e": "tsx scripts/local-mcp-e2e.ts",
     "typecheck": "tsc --noEmit",
     "validate:mcp": "tsx scripts/validate-mcp.ts",
+    "lockfile:deploy": "pnpm install --ignore-workspace --lockfile-only",
     "deploy": "vercel"
   },
   "dependencies": {

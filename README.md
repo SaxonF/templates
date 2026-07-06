@@ -7,14 +7,14 @@ A [shadcn GitHub registry](https://ui.shadcn.com/docs/registry/github) of Supaba
 ## Install a template
 
 ```bash
-npx shadcn@latest add SaxonF/templates/database
+npx shadcn@latest add SaxonF/templates/agent
 ```
 
 Install a specific version by pinning a tag or commit:
 
 ```bash
-npx shadcn@latest add SaxonF/templates/auth#v1.0.0
-npx shadcn@latest add SaxonF/templates/auth#<full-commit-sha>
+npx shadcn@latest add SaxonF/templates/agent#v1.0.0
+npx shadcn@latest add SaxonF/templates/agent#<full-commit-sha>
 ```
 
 Files are written into your project (typically under `supabase/`). You own and manage the code after install.
@@ -26,13 +26,13 @@ Files are written into your project (typically under `supabase/`). You own and m
 npx shadcn@latest list SaxonF/templates
 
 # Search
-npx shadcn@latest search SaxonF/templates -q auth
+npx shadcn@latest search SaxonF/templates -q agent
 
 # Inspect an item before installing
 npx shadcn@latest view SaxonF/templates/agent
 
 # Preview changes without writing files
-npx shadcn@latest add SaxonF/templates/auth --dry-run
+npx shadcn@latest add SaxonF/templates/headless-app --dry-run
 ```
 
 ## How the Registry Works
@@ -51,10 +51,10 @@ The `include` pattern in the docs is optional. It is useful for very large repos
 
 ### Dependencies
 
-Templates can depend on other templates in this registry via `registryDependencies`. For example, `auth` depends on `database`:
+Templates can depend on other templates in this registry via `registryDependencies`. For example, `mcp-tenancy` depends on `multi-tenant-rbac`:
 
 ```bash
-npx shadcn@latest add SaxonF/templates/auth
+npx shadcn@latest add SaxonF/templates/mcp-tenancy
 ```
 
 shadcn resolves and installs required dependencies from the same registry when needed.
@@ -137,16 +137,20 @@ npx shadcn@latest registry validate SaxonF/templates
 
 | ID | Category |
 |----|----------|
-| `database` | Core |
-| `auth` | Auth |
-| `api` | API |
-| `functions` | Core |
-| `storage` | Storage |
-| `security-rls` | Security |
-| `multi-tenant-rbac` | Security |
-| `agent` | AI |
-| `headless-app` | AI |
-| `ai-rag-pipeline` | AI |
+| `agent` | Core |
+| `headless-app` | Core |
+| `mcp-server` | Core |
+| `mcp-auth-ui` | Core |
+| `mcp-sql` | MCP Tools |
+| `mcp-functions` | MCP Tools |
+| `mcp-workflows` | MCP Tools |
+| `mcp-storage` | MCP Tools |
+| `mcp-tenancy` | MCP Tools |
+| `mcp-knowledge` | MCP Tools |
+| `mcp-observability` | MCP Tools |
+| `mcp-email` | MCP Tools |
+| `multi-tenant-rbac` | Access & Security |
+| `multi-tenant-rbac-edge-auth` | Access & Security |
 | … | See `npx shadcn@latest list SaxonF/templates` |
 
 ## License

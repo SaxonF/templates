@@ -11,12 +11,7 @@
       "categories": [
         "Core"
       ],
-      "registryDependencies": [
-        "SaxonF/templates/database",
-        "SaxonF/templates/api",
-        "SaxonF/templates/auth",
-        "SaxonF/templates/functions"
-      ],
+      "registryDependencies": [],
       "files": [
         {
           "path": "templates/agent/supabase/functions/.env.example",
@@ -34,7 +29,7 @@
           "target": "~/supabase/schemas/agent.sql"
         }
       ],
-      "docs": "# Agent template\n\nBuild persistent AI agents on Supabase with a streaming chat endpoint, session history, long-term memory, and MCP tool access. The generated `agent-chat` Edge Function uses **AI SDK 7** to stream model responses back to clients while persisting user and assistant messages in Postgres.\n\nThe agent is **standalone** — it connects to whatever MCP servers are deployed and uses the AI SDK's built-in MCP client (`@ai-sdk/mcp`) over Streamable HTTP. Add the **mcp-server** framework (plus tool templates like **mcp-sql**) and the agent automatically discovers and uses their tools; no client-side MCP wiring required.\n\n## What's included\n\n| Asset         | Path                                      | Purpose                                      |\n| ------------- | ----------------------------------------- | -------------------------------------------- |\n| Schema        | `supabase/schemas/agent.sql`              | Sessions, messages, memory, MCP servers, RLS |\n| Edge Function | `supabase/functions/agent-chat/index.ts`  | Streaming AI SDK chat endpoint               |\n\n### Sessions and messages\n\nEach session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response. The function verifies the caller's JWT, then writes sessions and messages with the service role — grant `service_role` table access in `agent.sql` so those inserts succeed.\n\n### Memory and recall\n\nMemory rows can store arbitrary JSON payloads. Add the **ai-vector-search** or **ai-automatic-embeddings** template for embedding columns, HNSW indexes, and similarity search helpers. The base agent schema intentionally omits pgvector objects so `supabase db diff` works reliably on fresh projects.\n\n### MCP tools\n\n`agent-chat` connects to each MCP server with the AI SDK MCP client (`createMCPClient` over Streamable HTTP), calls `client.tools()`, and passes the merged tool set to the model. Clients are closed when the stream finishes. The caller's JWT is forwarded in the `Authorization` header, which the **mcp-server** framework accepts via its first-party auth path.\n\n**Default behavior**\n\n`agent-chat` automatically connects to this project's `mcp-server` Edge Function at `${SUPABASE_URL}/functions/v1/mcp-server` and forwards the caller's JWT. You do not need to pass `mcpServers` from the browser for that.\n\n**Minimal client example**\n\n```ts\nconst response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {\n  method: 'POST',\n  headers: {\n    Authorization: `Bearer ${session.access_token}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    sessionId,\n    message: 'List my notes',\n  }),\n})\n```\n\n**Configuring MCP servers (persistent)**\n\n```sql\ninsert into public.agent_mcp_servers (name, url)\nvalues\n  ('project', '/functions/v1/mcp-server'),  -- relative path; resolved server-side\n  ('external', 'https://api.example.com/mcp'); -- external host; used as-is\n```\n\n**Request-scoped overrides** — only for additional servers or explicit header overrides:\n\n```ts\nmcpServers: [{ name: 'external', url: 'https://api.example.com/mcp' }]\n```\n\n| URL shape | Resolved to |\n| --------- | ----------- |\n| `/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |\n| `https://<ref>.supabase.co/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |\n| `https://other-host/...` | unchanged |\n\nTool names are namespaced as `<server>_<tool>` (e.g. `project_list_notes`). Mention this in app system prompts if you customize behavior.\n\n## Dependencies\n\n**Required**\n\n- `database` — base Supabase project config\n- `api` — REST/GraphQL surface for client access\n- `auth` — user-scoped sessions and RLS\n- `functions` — Edge Functions runtime\n\n**Optional**\n\n- `ai-vector-search` — pgvector similarity over memory embeddings\n- `ai-automatic-embeddings` — keep embeddings in sync via triggers\n- `mcp-server` — Edge Function MCP server the agent connects to automatically when installed; no client-side MCP configuration required\n\n## Getting started\n\n1. Add this template (and its required dependencies) to your composition.\n2. Generate an initial migration before seeding — see the **database** template readme (`supabase db diff -f initial_schema`, then `supabase db reset`).\n3. Configure model provider secrets:\n   - **Local:** copy `supabase/functions/.env.example` to `supabase/functions/.env` (auto-loaded by `supabase start`). Restart with `supabase stop && supabase start` after changes.\n   - **Hosted:** `supabase secrets set OPENAI_API_KEY=...` and optionally `OPENAI_MODEL=gpt-4o-mini`.\n4. Deploy Edge Functions: `supabase functions deploy agent-chat`.\n5. From your app, POST `{ message, sessionId? }` to `agent-chat` and read the streamed text response.\n\nFor production, review RLS policies in `agent.sql`, restrict service-role usage to server-side agent loops, and avoid storing long-lived third-party MCP secrets directly in `agent_mcp_servers.headers`.\n\n## MCP tool schemas\n\nThe AI SDK MCP client (`@ai-sdk/mcp`) discovers each server's tools and converts their JSON Schemas into model-ready tools automatically — no manual `jsonSchema()` wrapper needed. `agent-chat` only namespaces the tool keys as `<server>_<tool>` so multiple servers can't collide.\n\n## Debugging\n\n- Run `supabase functions serve agent-chat --no-verify-jwt` and watch the terminal for MCP load errors and model failures.\n- `agent-chat` streams error text to the client on model or tool failures instead of returning an empty 200 response.\n- If the model invents tool names, MCP discovery likely failed — check Edge Function logs for `failed to load MCP tools` or `no MCP tools loaded`.\n- Do not pass browser/public Supabase URLs into `mcpServers`; `agent-chat` resolves same-project function URLs via `SUPABASE_URL` itself.\n- User-scoped MCP tools require the caller JWT; `agent-chat` forwards `Authorization` automatically.",
+      "docs": "# Agent template\n\nBuild persistent AI agents on Supabase with a streaming chat endpoint, session history, long-term memory, and MCP tool access. The generated `agent-chat` Edge Function uses **AI SDK 7** to stream model responses back to clients while persisting user and assistant messages in Postgres.\n\nThe agent is **standalone** — it connects to whatever MCP servers are deployed and uses the AI SDK's built-in MCP client (`@ai-sdk/mcp`) over Streamable HTTP. Add the **mcp-server** framework (plus tool templates like **mcp-sql**) and the agent automatically discovers and uses their tools; no client-side MCP wiring required.\n\n## What's included\n\n| Asset         | Path                                      | Purpose                                      |\n| ------------- | ----------------------------------------- | -------------------------------------------- |\n| Schema        | `supabase/schemas/agent.sql`              | Sessions, messages, memory, MCP servers, RLS |\n| Edge Function | `supabase/functions/agent-chat/index.ts`  | Streaming AI SDK chat endpoint               |\n\n### Sessions and messages\n\nEach session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response. The function verifies the caller's JWT, then writes sessions and messages with the service role — grant `service_role` table access in `agent.sql` so those inserts succeed.\n\n### Memory and recall\n\nMemory rows can store arbitrary JSON payloads. The base agent schema intentionally omits pgvector objects so `supabase db diff` works reliably on fresh projects.\n\n### MCP tools\n\n`agent-chat` connects to each MCP server with the AI SDK MCP client (`createMCPClient` over Streamable HTTP), calls `client.tools()`, and passes the merged tool set to the model. Clients are closed when the stream finishes. The caller's JWT is forwarded in the `Authorization` header, which the **mcp-server** framework accepts via its first-party auth path.\n\n**Default behavior**\n\n`agent-chat` automatically connects to this project's `mcp-server` Edge Function at `${SUPABASE_URL}/functions/v1/mcp-server` and forwards the caller's JWT. You do not need to pass `mcpServers` from the browser for that.\n\n**Minimal client example**\n\n```ts\nconst response = await fetch(`${supabaseUrl}/functions/v1/agent-chat`, {\n  method: 'POST',\n  headers: {\n    Authorization: `Bearer ${session.access_token}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    sessionId,\n    message: 'List my notes',\n  }),\n})\n```\n\n**Configuring MCP servers (persistent)**\n\n```sql\ninsert into public.agent_mcp_servers (name, url)\nvalues\n  ('project', '/functions/v1/mcp-server'),  -- relative path; resolved server-side\n  ('external', 'https://api.example.com/mcp'); -- external host; used as-is\n```\n\n**Request-scoped overrides** — only for additional servers or explicit header overrides:\n\n```ts\nmcpServers: [{ name: 'external', url: 'https://api.example.com/mcp' }]\n```\n\n| URL shape | Resolved to |\n| --------- | ----------- |\n| `/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |\n| `https://<ref>.supabase.co/functions/v1/mcp-server` | `${SUPABASE_URL}/functions/v1/mcp-server` |\n| `https://other-host/...` | unchanged |\n\nTool names are namespaced as `<server>_<tool>` (e.g. `project_list_notes`). Mention this in app system prompts if you customize behavior.\n\n## Dependencies\n\n**Optional**\n\n- `mcp-server` — Edge Function MCP server the agent connects to automatically when installed; no client-side MCP configuration required\n\n## Getting started\n\n1. Start from a Supabase project with Auth and Edge Functions enabled (`supabase init` / `supabase start`).\n2. Generate an initial migration before seeding (`supabase db diff -f initial_schema`, then `supabase db reset`).\n3. Configure model provider secrets:\n   - **Local:** copy `supabase/functions/.env.example` to `supabase/functions/.env` (auto-loaded by `supabase start`). Restart with `supabase stop && supabase start` after changes.\n   - **Hosted:** `supabase secrets set OPENAI_API_KEY=...` and optionally `OPENAI_MODEL=gpt-4o-mini`.\n4. Deploy Edge Functions: `supabase functions deploy agent-chat`.\n5. From your app, POST `{ message, sessionId? }` to `agent-chat` and read the streamed text response.\n\nFor production, review RLS policies in `agent.sql`, restrict service-role usage to server-side agent loops, and avoid storing long-lived third-party MCP secrets directly in `agent_mcp_servers.headers`.\n\n## MCP tool schemas\n\nThe AI SDK MCP client (`@ai-sdk/mcp`) discovers each server's tools and converts their JSON Schemas into model-ready tools automatically — no manual `jsonSchema()` wrapper needed. `agent-chat` only namespaces the tool keys as `<server>_<tool>` so multiple servers can't collide.\n\n## Debugging\n\n- Run `supabase functions serve agent-chat --no-verify-jwt` and watch the terminal for MCP load errors and model failures.\n- `agent-chat` streams error text to the client on model or tool failures instead of returning an empty 200 response.\n- If the model invents tool names, MCP discovery likely failed — check Edge Function logs for `failed to load MCP tools` or `no MCP tools loaded`.\n- Do not pass browser/public Supabase URLs into `mcpServers`; `agent-chat` resolves same-project function URLs via `SUPABASE_URL` itself.\n- User-scoped MCP tools require the caller JWT; `agent-chat` forwards `Authorization` automatically.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -48,341 +43,10 @@
         "license": "MIT",
         "repository": "https://github.com/SaxonF/templates/tree/main/templates/agent",
         "dependencies": {
-          "required": [
-            "database",
-            "api",
-            "auth",
-            "functions"
-          ],
           "optional": [
-            "mcp-server",
-            "ai-vector-search",
-            "ai-automatic-embeddings"
+            "mcp-server"
           ]
         }
-      }
-    },
-    {
-      "name": "ai-automatic-embeddings",
-      "type": "registry:item",
-      "title": "Automatic Embeddings",
-      "description": "Queue, triggers, and Edge Function scaffold to generate and sync embeddings automatically",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database",
-        "SaxonF/templates/functions",
-        "SaxonF/templates/ai-vector-search"
-      ],
-      "files": [
-        {
-          "path": "templates/ai-automatic-embeddings/supabase/functions/embed/index.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/embed/index.ts"
-        },
-        {
-          "path": "templates/ai-automatic-embeddings/supabase/schemas/embeddings.sql",
-          "type": "registry:file",
-          "target": "~/supabase/schemas/embeddings.sql"
-        },
-        {
-          "path": "templates/ai-automatic-embeddings/supabase/seed.sql",
-          "type": "registry:file",
-          "target": "~/supabase/seed.sql"
-        }
-      ],
-      "docs": "# Automatic embeddings template\n\nKeeps document embeddings in sync using database triggers and an Edge Function embed worker.\n\n## Includes\n\n- Embeddings schema and queue tables\n- `embed` Edge Function for batch embedding\n- Seed data for local development\n\n## Dependencies\n\nRequires **database**, **api**, and **functions**. Works best with **ai-vector-search** for similarity queries.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/ai-automatic-embeddings",
-        "dependencies": {
-          "required": [
-            "database",
-            "functions",
-            "ai-vector-search"
-          ]
-        }
-      }
-    },
-    {
-      "name": "ai-rag-pipeline",
-      "type": "registry:item",
-      "title": "RAG Pipeline",
-      "description": "Turn-key retrieval-augmented generation: ingest text via an Edge Function, auto-chunk and embed, then query for similar passages",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database",
-        "SaxonF/templates/api",
-        "SaxonF/templates/functions"
-      ],
-      "files": [
-        {
-          "path": "templates/ai-rag-pipeline/supabase/functions/rag-embed/index.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/rag-embed/index.ts"
-        },
-        {
-          "path": "templates/ai-rag-pipeline/supabase/functions/rag-ingest/index.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/rag-ingest/index.ts"
-        },
-        {
-          "path": "templates/ai-rag-pipeline/supabase/functions/rag-query/index.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/rag-query/index.ts"
-        },
-        {
-          "path": "templates/ai-rag-pipeline/supabase/schemas/rag.sql",
-          "type": "registry:file",
-          "target": "~/supabase/schemas/rag.sql"
-        },
-        {
-          "path": "templates/ai-rag-pipeline/supabase/seed.sql",
-          "type": "registry:file",
-          "target": "~/supabase/seed.sql"
-        }
-      ],
-      "docs": "# RAG pipeline template\n\nA turn-key retrieval-augmented generation setup. POST text to `rag-ingest` and it is chunked, embedded, and stored. POST a question to `rag-query` and the top matching chunks come back, ready to drop into a model prompt.\n\n> **Powers [`mcp-knowledge`](../mcp-knowledge).** This is a backing service — install the tool pack to give an agent retrieval over this pipeline.\n\n## How it works\n\n1. Client calls `rag-ingest` with `{ source, content, metadata? }`.\n2. The function inserts a `public.rag_documents` row and splits the content into ~1,000-character chunks in `public.rag_chunks`.\n3. A trigger enqueues each chunk on the `rag_embedding_jobs` `pgmq` queue.\n4. A `pg_cron` job drains the queue every 10 seconds and invokes the `rag-embed` worker.\n5. The worker calls OpenAI's embedding API and writes the vectors back to `rag_chunks`.\n6. Clients call `rag-query` with a question — the function embeds the query and returns the closest chunks via the `match_rag_chunks` SQL helper.\n\n## Includes\n\n- `supabase/schemas/rag.sql` — documents, chunks, HNSW index, queue, cron, and trigger\n- `supabase/functions/rag-ingest/index.ts` — accepts text, splits into chunks\n- `supabase/functions/rag-embed/index.ts` — batch worker invoked by `pg_cron`\n- `supabase/functions/rag-query/index.ts` — embeds a query and returns matches\n- `supabase/seed.sql` — local `project_url` secret used by `pg_net`\n\n## Configuration\n\nSet `OPENAI_API_KEY` on the project (`supabase secrets set OPENAI_API_KEY=...`). The pipeline uses `text-embedding-3-small` (1536 dimensions); change `embedding_dim` in `rag.sql` and the model name in the worker if you switch.\n\n## Dependencies\n\nRequires **database**, **api**, and **functions**. Optional: **queues** (the schema enables `pgmq` itself) and **ai-vector-search** if you want the generic `documents` table side by side.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/ai-rag-pipeline",
-        "dependencies": {
-          "required": [
-            "database",
-            "api",
-            "functions"
-          ]
-        }
-      }
-    },
-    {
-      "name": "ai-storage-rag-ingest",
-      "type": "registry:item",
-      "title": "Storage RAG Ingest",
-      "description": "Ingest text and markdown files from Storage into the existing RAG pipeline",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database",
-        "SaxonF/templates/storage",
-        "SaxonF/templates/functions",
-        "SaxonF/templates/ai-rag-pipeline"
-      ],
-      "files": [
-        {
-          "path": "templates/ai-storage-rag-ingest/supabase/functions/rag-file-ingest/index.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/rag-file-ingest/index.ts"
-        },
-        {
-          "path": "templates/ai-storage-rag-ingest/supabase/schemas/storage-rag-ingest.sql",
-          "type": "registry:file",
-          "target": "~/supabase/schemas/storage-rag-ingest.sql"
-        }
-      ],
-      "docs": "# Storage RAG ingest template\n\nExtends **RAG Pipeline** with file uploads. Files uploaded to the private `rag-files` bucket are downloaded by an Edge Function, converted to text, and inserted into the existing `rag_documents` and `rag_chunks` tables.\n\n## How it works\n\n1. A user uploads a `.txt`, `.md`, or `.markdown` file to `rag-files/<user_id>/...`.\n2. A trigger on `storage.objects` creates a `public.rag_file_ingestions` row.\n3. The trigger invokes `rag-file-ingest` through `pg_net`.\n4. The function downloads the file, extracts UTF-8 text, chunks it, and inserts rows into the existing RAG tables.\n5. The ingestion row is updated to `ready` or `failed`.\n\n## Includes\n\n- `supabase/schemas/storage-rag-ingest.sql` - bucket, policies, tracking table, and upload trigger\n- `supabase/functions/rag-file-ingest/index.ts` - Storage download and RAG insert worker\n\n## Configuration\n\nRequires **RAG Pipeline**. The Edge Function uses `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, which are injected automatically in hosted projects. For local development, set the `project_url` Vault secret to the local Functions URL.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/ai-storage-rag-ingest",
-        "dependencies": {
-          "required": [
-            "database",
-            "storage",
-            "functions",
-            "ai-rag-pipeline"
-          ]
-        }
-      }
-    },
-    {
-      "name": "ai-vector-search",
-      "type": "registry:item",
-      "title": "Vector Search",
-      "description": "pgvector extension with documents table and HNSW index for semantic search",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database",
-        "SaxonF/templates/api"
-      ],
-      "files": [
-        {
-          "path": "templates/ai-vector-search/supabase/schemas/vector.sql",
-          "type": "registry:file",
-          "target": "~/supabase/schemas/vector.sql"
-        }
-      ],
-      "docs": "# Vector search template\n\nAdds pgvector-backed storage and SQL helpers for similarity search over embeddings.\n\n## Includes\n\n- Vector extension setup and document embedding tables\n- Search functions for nearest-neighbor queries\n\n## Dependencies\n\nRequires **database**. Often combined with **ai-automatic-embeddings** for kept-in-sync vectors.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/ai-vector-search",
-        "dependencies": {
-          "required": [
-            "database",
-            "api"
-          ]
-        }
-      }
-    },
-    {
-      "name": "api",
-      "type": "registry:item",
-      "title": "Data API",
-      "description": "PostgREST API for database access over HTTP",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database"
-      ],
-      "files": [
-        {
-          "path": "templates/api/supabase/config/api.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config/api.toml"
-        }
-      ],
-      "docs": "# Data API template\n\nPostgREST API configuration for local development.\n\n## Configuration\n\nThis template installs `supabase/config/api.toml` — a partial config fragment. Merge its sections into `supabase/config.toml` alongside any other fragments under `supabase/config/*.toml`.\n\n## Dependencies\n\nRequires **database**.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/api",
-        "dependencies": {
-          "required": [
-            "database"
-          ]
-        }
-      }
-    },
-    {
-      "name": "auth",
-      "type": "registry:item",
-      "title": "Auth",
-      "description": "User authentication and authorization service",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database"
-      ],
-      "files": [
-        {
-          "path": "templates/auth/supabase/config/auth.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config/auth.toml"
-        }
-      ],
-      "docs": "# Auth template\n\nSupabase Auth configuration for local development.\n\n## Configuration\n\nThis template installs `supabase/config/auth.toml` — a partial config fragment. Merge its sections into `supabase/config.toml` alongside any other fragments under `supabase/config/*.toml`.\n\n## Local email (Mailpit)\n\n`enable_confirmations` is `true` so sign-up sends a confirmation email locally. Emails are captured by Mailpit — they do not go to a real inbox.\n\nAfter `supabase start`, run `supabase status` for your project's Mailpit URL (port varies per project). Link to Mailpit from your sign-up success UI when `NEXT_PUBLIC_SUPABASE_URL` points at localhost.\n\nIf you disable confirmations in `config.toml`, update your sign-up UI to skip the \"check your email\" step.\n\n## Redirect URLs\n\n`site_url` defaults to `http://localhost:3000`. `additional_redirect_urls` includes localhost and `127.0.0.1` wildcards so Next.js on either host can complete auth redirects.\n\n## Dependencies\n\nRequires **database**.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/auth",
-        "dependencies": {
-          "required": [
-            "database"
-          ]
-        }
-      }
-    },
-    {
-      "name": "database",
-      "type": "registry:item",
-      "title": "Database",
-      "description": "PostgreSQL database with schemas and seed support",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [],
-      "files": [
-        {
-          "path": "templates/database/supabase/config/database.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config/database.toml"
-        }
-      ],
-      "docs": "# Database template\n\nBase Supabase project configuration for local development.\n\n## Configuration\n\nThis template installs `supabase/config/database.toml` — a partial config fragment, not a full `config.toml`. The shadcn installer cannot merge config across templates, so copy the sections from each installed fragment into `supabase/config.toml` (run `supabase init` first if the file does not exist).\n\nWhen you add more templates, merge every fragment under `supabase/config/*.toml` into `supabase/config.toml`. Inspect fragments with `npx shadcn@latest view SaxonF/templates/<id>`.\n\n## Declarative schemas and migrations\n\nTemplates ship SQL under `supabase/schemas/`. Supabase applies declarative schemas only after they exist in a migration. On a fresh project:\n\n1. Install templates, merge `supabase/config/*.toml` into `supabase/config.toml`, and merge any `seed.sql` files from multiple templates into one file (later installs overwrite `seed.sql` — keep RBAC seed data when adding other templates).\n2. Use an empty or comment-only `seed.sql` for the first boot if seed data references tables that do not exist yet.\n3. Run `supabase start` (or `supabase db start`).\n4. Generate the initial migration: `supabase db diff -f initial_schema`\n5. Restore seed data, then run `supabase db reset`.\n\nSkipping step 4 causes `db reset` to run seed SQL before RBAC and other tables exist.\n\n## Table permissions\n\n`db diff` does not always emit `GRANT` statements for the `authenticated` role. Templates that expose tables through PostgREST include grants in their schema files. If you add tables manually, end each schema file with:\n\n```sql\ngrant select, insert, update, delete on table public.<table> to authenticated;\ngrant usage, select on all sequences in schema public to authenticated;\n```\n\nRLS policies are not evaluated when the role lacks table-level `SELECT`/`INSERT`/`UPDATE`/`DELETE` grants.\n\n## Dependencies\n\nNone. Other templates depend on this one.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/database"
-      }
-    },
-    {
-      "name": "durable-workflows",
-      "type": "registry:item",
-      "title": "Durable Workflows",
-      "description": "Workflow runs, retryable steps, attempts, queues, and an Edge Function worker scaffold",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database",
-        "SaxonF/templates/functions"
-      ],
-      "files": [
-        {
-          "path": "templates/durable-workflows/supabase/functions/workflow-worker/index.ts",
-          "type": "registry:file",
-          "target": "~/supabase/functions/workflow-worker/index.ts"
-        },
-        {
-          "path": "templates/durable-workflows/supabase/schemas/workflows.sql",
-          "type": "registry:file",
-          "target": "~/supabase/schemas/workflows.sql"
-        }
-      ],
-      "docs": "# Durable workflows template\n\nAdds a Postgres-backed workflow runner for long-running or retryable product work. Use it for imports, exports, document processing, billing reconciliation, AI batch work, or any task that should survive request timeouts.\n\n> **Powers [`mcp-workflows`](../mcp-workflows).** This is a backing service — install the tool pack to let an agent enqueue and inspect workflows.\n\n## How it works\n\n1. Call `public.enqueue_workflow(...)` to create a workflow run and enqueue it in `pgmq`.\n2. A `pg_cron` job drains the queue and invokes the `workflow-worker` Edge Function.\n3. The worker marks the run `running`, records an attempt, and dispatches by `workflow_type`.\n4. Successful runs are marked `succeeded`; failures are retried until `max_attempts`, then moved to `dead_letter`.\n\n## Includes\n\n- `supabase/schemas/workflows.sql` - workflow tables, enqueue helper, queue dispatcher, and cron job\n- `supabase/functions/workflow-worker/index.ts` - Edge Function worker scaffold with retry handling\n\n## Configuration\n\nThe generated worker intentionally includes a small dispatch registry. Add your workflow handlers inside `handlers` in `workflow-worker/index.ts`.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/durable-workflows",
-        "dependencies": {
-          "required": [
-            "database",
-            "functions"
-          ]
-        }
-      }
-    },
-    {
-      "name": "functions",
-      "type": "registry:item",
-      "title": "Edge Functions",
-      "description": "Deno-based serverless functions at the edge",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [],
-      "files": [
-        {
-          "path": "templates/functions/supabase/config/functions.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config/functions.toml"
-        }
-      ],
-      "docs": "# Edge Functions template\n\nEdge Functions runtime configuration for local development.\n\n## Configuration\n\nThis template installs `supabase/config/functions.toml` — a partial config fragment. Merge its sections into `supabase/config.toml` alongside any other fragments under `supabase/config/*.toml`.\n\n## Dependencies\n\nNone.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/functions"
       }
     },
     {
@@ -534,9 +198,7 @@
         "MCP Tools"
       ],
       "registryDependencies": [
-        "SaxonF/templates/mcp-server",
-        "SaxonF/templates/functions",
-        "SaxonF/templates/queues"
+        "SaxonF/templates/mcp-server"
       ],
       "files": [
         {
@@ -581,9 +243,7 @@
         "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-email",
         "dependencies": {
           "required": [
-            "mcp-server",
-            "functions",
-            "queues"
+            "mcp-server"
           ]
         }
       }
@@ -597,8 +257,7 @@
         "MCP Tools"
       ],
       "registryDependencies": [
-        "SaxonF/templates/mcp-server",
-        "SaxonF/templates/functions"
+        "SaxonF/templates/mcp-server"
       ],
       "files": [
         {
@@ -612,7 +271,7 @@
           "target": "~/supabase/functions/mcp-server/tools/index.ts"
         }
       ],
-      "docs": "# MCP Functions\n\nScaffold for exposing Supabase Edge Functions as typed MCP tools.\n\nThis template deliberately does **not** expose a generic `invoke_function` tool.\nAgents should see named, schema-validated capabilities such as `send_invite`,\n`create_export`, or `charge_customer`, not a raw dispatcher that can call any\nfunction by string.\n\n## Includes\n\n- `supabase/functions/mcp-server/tools/functions.ts` - app-owned registration\n  file for typed Edge Function tools.\n- `supabase/functions/mcp-server/tools/index.ts` - standalone aggregator for\n  `mcp-server + mcp-functions`.\n\n## Add a function tool\n\nEdit `functions.ts` and register one tool per exposed function:\n\n```ts\nserver.registerTool(\n  \"send_invite\",\n  {\n    description: \"Send an organization invite email.\",\n    inputSchema: { email: z.string().email(), organizationId: z.string().uuid() },\n    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },\n  },\n  ({ email, organizationId }) =>\n    invokeEdgeFunction(context.supabase, \"send-invite\", { email, organizationId }),\n);\n```\n\nThe framework helper forwards the signed-in user's token through the user-scoped\nSupabase client. The target Edge Function must still perform its own\nauthentication and authorization.\n\n## Composition\n\nWhen this is the only tool template, its `tools/index.ts` works as-is. When\nseveral tool templates are composed, use a bundle such as **headless-app** or\nmanually merge the register calls into one final `tools/index.ts`.\n\n## Dependencies\n\nRequires **mcp-server** and **functions**.",
+      "docs": "# MCP Functions\n\nScaffold for exposing Supabase Edge Functions as typed MCP tools.\n\nThis template deliberately does **not** expose a generic `invoke_function` tool.\nAgents should see named, schema-validated capabilities such as `send_invite`,\n`create_export`, or `charge_customer`, not a raw dispatcher that can call any\nfunction by string.\n\n## Includes\n\n- `supabase/functions/mcp-server/tools/functions.ts` - app-owned registration\n  file for typed Edge Function tools.\n- `supabase/functions/mcp-server/tools/index.ts` - standalone aggregator for\n  `mcp-server + mcp-functions`.\n\n## Add a function tool\n\nEdit `functions.ts` and register one tool per exposed function:\n\n```ts\nserver.registerTool(\n  \"send_invite\",\n  {\n    description: \"Send an organization invite email.\",\n    inputSchema: { email: z.string().email(), organizationId: z.string().uuid() },\n    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },\n  },\n  ({ email, organizationId }) =>\n    invokeEdgeFunction(context.supabase, \"send-invite\", { email, organizationId }),\n);\n```\n\nThe framework helper forwards the signed-in user's token through the user-scoped\nSupabase client. The target Edge Function must still perform its own\nauthentication and authorization.\n\n## Composition\n\nWhen this is the only tool template, its `tools/index.ts` works as-is. When\nseveral tool templates are composed, use a bundle such as **headless-app** or\nmanually merge the register calls into one final `tools/index.ts`.\n\n## Dependencies\n\nRequires **mcp-server**. Ships a `supabase/config/functions.toml` fragment — merge it into `supabase/config.toml`.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -627,8 +286,7 @@
         "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-functions",
         "dependencies": {
           "required": [
-            "mcp-server",
-            "functions"
+            "mcp-server"
           ]
         }
       }
@@ -642,8 +300,7 @@
         "MCP Tools"
       ],
       "registryDependencies": [
-        "SaxonF/templates/mcp-server",
-        "SaxonF/templates/ai-rag-pipeline"
+        "SaxonF/templates/mcp-server"
       ],
       "files": [
         {
@@ -655,9 +312,44 @@
           "path": "templates/mcp-knowledge/supabase/functions/mcp-server/tools/knowledge.ts",
           "type": "registry:file",
           "target": "~/supabase/functions/mcp-server/tools/knowledge.ts"
+        },
+        {
+          "path": "templates/mcp-knowledge/supabase/functions/rag-embed/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/rag-embed/index.ts"
+        },
+        {
+          "path": "templates/mcp-knowledge/supabase/functions/rag-file-ingest/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/rag-file-ingest/index.ts"
+        },
+        {
+          "path": "templates/mcp-knowledge/supabase/functions/rag-ingest/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/rag-ingest/index.ts"
+        },
+        {
+          "path": "templates/mcp-knowledge/supabase/functions/rag-query/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/rag-query/index.ts"
+        },
+        {
+          "path": "templates/mcp-knowledge/supabase/schemas/rag.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/rag.sql"
+        },
+        {
+          "path": "templates/mcp-knowledge/supabase/schemas/storage-rag-ingest.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/storage-rag-ingest.sql"
+        },
+        {
+          "path": "templates/mcp-knowledge/supabase/seed.sql",
+          "type": "registry:file",
+          "target": "~/supabase/seed.sql"
         }
       ],
-      "docs": "# MCP Knowledge\n\nAdds knowledge ingestion and search tools backed by **ai-rag-pipeline**.\n\n## Tools\n\n| Tool | Purpose |\n| --- | --- |\n| `ingest_knowledge` | Ingest text into the RAG pipeline. |\n| `search_knowledge` | Search embedded RAG chunks for relevant passages. |\n\nBoth tools call the existing `rag-ingest` and `rag-query` Edge Functions through\nthe signed-in user's Supabase client.\n\n## Dependencies\n\nRequires **mcp-server** and **ai-rag-pipeline**.",
+      "docs": "# MCP Knowledge\n\nAdds knowledge ingestion and search tools backed by an included RAG pipeline.\n\n## Tools\n\n| Tool | Purpose |\n| --- | --- |\n| `ingest_knowledge` | Ingest text into the RAG pipeline. |\n| `search_knowledge` | Search embedded RAG chunks for relevant passages. |\n\nBoth tools call the existing `rag-ingest` and `rag-query` Edge Functions through\nthe signed-in user's Supabase client.\n\n## Includes\n\n- `supabase/schemas/rag.sql` — documents, chunks, embedding queue, and cron worker\n- `supabase/functions/rag-ingest`, `rag-embed`, `rag-query` — ingest, embed, and search workers\n- `supabase/schemas/storage-rag-ingest.sql` — optional Storage upload path for `.txt`/`.md` files\n- `supabase/functions/rag-file-ingest` — downloads Storage files and inserts them into the RAG tables\n\n## Dependencies\n\nRequires **mcp-server**. Configure `OPENAI_API_KEY` for embedding and query functions.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -672,8 +364,7 @@
         "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-knowledge",
         "dependencies": {
           "required": [
-            "mcp-server",
-            "ai-rag-pipeline"
+            "mcp-server"
           ]
         }
       }
@@ -688,7 +379,6 @@
       ],
       "registryDependencies": [
         "SaxonF/templates/mcp-server",
-        "SaxonF/templates/observability-logs",
         "SaxonF/templates/mcp-workflows"
       ],
       "files": [
@@ -701,9 +391,14 @@
           "path": "templates/mcp-observability/supabase/functions/mcp-server/tools/observability.ts",
           "type": "registry:file",
           "target": "~/supabase/functions/mcp-server/tools/observability.ts"
+        },
+        {
+          "path": "templates/mcp-observability/supabase/schemas/observability.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/observability.sql"
         }
       ],
-      "docs": "# MCP Observability\n\nAdds lightweight operational tools for agents.\n\n## Tools\n\n| Tool | Purpose |\n| --- | --- |\n| `write_app_log` | Write a structured user-scoped log event. |\n| `list_app_logs` | Read recent user-scoped log events. |\n| `list_failed_workflows` | Inspect recent failed/dead-letter workflow runs. |\n\nThis template pairs with **observability-logs** and **mcp-workflows**. It\ndoes not expose secrets, raw environment variables, or unrestricted platform\nlogs.\n\n## Dependencies\n\nRequires **mcp-server**, **observability-logs**, and **mcp-workflows**.",
+      "docs": "# MCP Observability\n\nAdds lightweight operational tools for agents.\n\n## Tools\n\n| Tool | Purpose |\n| --- | --- |\n| `write_app_log` | Write a structured user-scoped log event. |\n| `list_app_logs` | Read recent user-scoped log events. |\n| `list_failed_workflows` | Inspect recent failed/dead-letter workflow runs. |\n\n## Includes\n\n- `supabase/schemas/observability.sql` — user-scoped `app_logs` table and RLS\n\nThis template pairs with **mcp-workflows** for failed-run inspection. It does\nnot expose secrets, raw environment variables, or unrestricted platform logs.\n\n## Dependencies\n\nRequires **mcp-server** and **mcp-workflows**.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -719,7 +414,6 @@
         "dependencies": {
           "required": [
             "mcp-server",
-            "observability-logs",
             "mcp-workflows"
           ]
         }
@@ -796,7 +490,7 @@
           "target": "~/supabase/migrations/20260622004622_mcp_access_token_hook.sql"
         }
       ],
-      "docs": "# MCP Server\n\nA composable **Model Context Protocol** server, deployed as a single Supabase\nEdge Function. This is the **framework** other templates build on: it owns the\ntransport, connection handling, authentication, and the tool registry — and\nnothing else. Tools come from tool templates (e.g. [mcp-sql](../mcp-sql)) or\nyour own files.\n\n## What it does\n\n- **Official MCP transport.** Uses `@modelcontextprotocol/sdk` with the\n  `WebStandardStreamableHTTPServerTransport` (stateless, JSON responses), so any\n  spec-compliant MCP client — Claude Desktop, MCP Inspector, the AI SDK MCP\n  client — can connect.\n- **Dual-mode auth** ([auth.ts](supabase/functions/mcp-server/auth.ts)):\n  1. **OAuth 2.1 protected resource** — for external clients. Tokens carry a\n     `client_id` and must be audience-bound to this resource (the resource URL\n     appears in `aud`, added by the access-token hook migration). This stops a\n     token minted elsewhere from being replayed here.\n  2. **First-party Supabase JWT** — for in-project callers such as the\n     [agent](../agent) forwarding the user's session token. No `client_id`, no\n     resource-audience binding. Set `MCP_ALLOW_FIRST_PARTY_JWT=false` to require\n     OAuth only.\n\n  Both modes build a user-scoped Supabase client and confirm the live session,\n  so revoked grants and deleted sessions take effect immediately.\n- **No UI.** The OAuth consent / sign-in / setup screens live in the\n  [mcp-auth-ui](../mcp-auth-ui) template.\n\n## Files\n\n| File | Role |\n| --- | --- |\n| `supabase/functions/mcp-server/index.ts` | Transport + request lifecycle. Builds the base `ToolContext` and calls `registerTools`. |\n| `supabase/functions/mcp-server/auth.ts` | Dual-mode auth + OAuth protected-resource metadata + CORS. |\n| `supabase/functions/mcp-server/tools/types.ts` | The base `ToolContext` type. Framework-owned; never overwritten. |\n| `supabase/functions/mcp-server/tools/index.ts` | The tool aggregator — **the one extension point**. |\n| `supabase/functions/mcp-server/tools/{echo,whoami}.ts` | Example tools. |\n| `supabase/functions/mcp-server/tools/{result,edge-function}.ts` | Shared helpers for consistent MCP results and typed Edge Function tool wrappers. |\n| `supabase/migrations/…_mcp_access_token_hook.sql` | Adds the resource URL to OAuth token audiences. |\n| `supabase/config.toml` | Auth (OAuth server + hook), edge runtime, function config. |\n\n## Composition contract\n\nThis is how tool templates extend the server without colliding under shadcn's\nwhole-file copy:\n\n- **Tool templates are purely additive.** They drop tool files under\n  `supabase/functions/mcp-server/tools/`, add their own timestamped migrations,\n  and import any shared library with a **relative path**\n  (`../../_shared/<lib>/mod.ts`). They **never** edit `index.ts`, `auth.ts`,\n  `types.ts`, or `deno.json`.\n- **Tools get their own dependencies from module singletons**, not from the base\n  `ToolContext`, so the framework never references a specific tool.\n- **Generic helpers live in the framework.** Use `result.ts` for consistent MCP\n  payloads and `edge-function.ts` for named, schema-validated Edge Function\n  tools. Do not expose a generic \"invoke any function\" dispatcher.\n- **`tools/index.ts` is the only contested file.** It is owned by the leaf: a\n  single tool template ships its own version; when several are composed, the\n  [headless-app](../headless-app) block ships the final aggregated version.\n\n## Adding a tool\n\n1. Create `supabase/functions/mcp-server/tools/my-tool.ts` exporting\n   `registerMyTool(server, context)` and calling `server.registerTool(...)`.\n2. Call it from `registerTools` in `tools/index.ts`.\n\n```ts\n// tools/my-tool.ts\nimport type { McpServer } from \"npm:@modelcontextprotocol/sdk@1.29.0/server/mcp.js\";\nimport { z } from \"npm:zod@4.4.3\";\nimport type { ToolContext } from \"./types.ts\";\n\nexport function registerMyTool(server: McpServer, { supabase }: ToolContext): void {\n  server.registerTool(\n    \"my_tool\",\n    { description: \"…\", inputSchema: { name: z.string() } },\n    async ({ name }) => {\n      const { data, error } = await supabase.from(\"things\").select(\"*\").eq(\"name\", name);\n      if (error) return { isError: true, content: [{ type: \"text\", text: error.message }] };\n      return { content: [{ type: \"text\", text: JSON.stringify(data) }] };\n    },\n  );\n}\n```\n\n## Configuration\n\n| Env var | Default | Purpose |\n| --- | --- | --- |\n| `MCP_SERVER_NAME` | `supabase-agent` | Display name shown in MCP clients. |\n| `MCP_SERVER_DESCRIPTION` | _(generic)_ | Server description / instructions. |\n| `MCP_ALLOW_FIRST_PARTY_JWT` | `true` | Accept first-party Supabase JWTs in addition to OAuth tokens. |\n| `MCP_RESOURCE_URL` | _(derived)_ | Override the canonical resource URL. **Required on hosted Supabase** (Edge Functions derive internal URLs). Also use for custom domains. |\n| `MCP_AUTH_ISSUER` | _(derived)_ | Override the canonical auth issuer. **Required on hosted Supabase.** Also use for custom domains. |\n\n## Local endpoint\n\nAfter `supabase start`:\n\n```text\nhttp://127.0.0.1:54321/functions/v1/mcp-server\n```\n\n## Dependencies\n\nRequires Supabase **database**, **auth**, and **functions**. Pairs with\n[mcp-auth-ui](../mcp-auth-ui) (OAuth UI), [mcp-sql](../mcp-sql) (database tool),\nand Supabase-native tool packs such as [mcp-workflows](../mcp-workflows),\n[mcp-storage](../mcp-storage), and [mcp-tenancy](../mcp-tenancy). The\n[headless-app](../headless-app) block bundles the common stack.",
+      "docs": "# MCP Server\n\nA composable **Model Context Protocol** server, deployed as a single Supabase\nEdge Function. This is the **framework** other templates build on: it owns the\ntransport, connection handling, authentication, and the tool registry — and\nnothing else. Tools come from tool templates (e.g. [mcp-sql](../mcp-sql)) or\nyour own files.\n\n## What it does\n\n- **Official MCP transport.** Uses `@modelcontextprotocol/sdk` with the\n  `WebStandardStreamableHTTPServerTransport` (stateless, JSON responses), so any\n  spec-compliant MCP client — Claude Desktop, MCP Inspector, the AI SDK MCP\n  client — can connect.\n- **Dual-mode auth** ([auth.ts](supabase/functions/mcp-server/auth.ts)):\n  1. **OAuth 2.1 protected resource** — for external clients. Tokens carry a\n     `client_id` and must be audience-bound to this resource (the resource URL\n     appears in `aud`, added by the access-token hook migration). This stops a\n     token minted elsewhere from being replayed here.\n  2. **First-party Supabase JWT** — for in-project callers such as the\n     [agent](../agent) forwarding the user's session token. No `client_id`, no\n     resource-audience binding. Set `MCP_ALLOW_FIRST_PARTY_JWT=false` to require\n     OAuth only.\n\n  Both modes build a user-scoped Supabase client and confirm the live session,\n  so revoked grants and deleted sessions take effect immediately.\n- **No UI.** The OAuth consent / sign-in / setup screens live in the\n  [mcp-auth-ui](../mcp-auth-ui) template.\n\n## Files\n\n| File | Role |\n| --- | --- |\n| `supabase/functions/mcp-server/index.ts` | Transport + request lifecycle. Builds the base `ToolContext` and calls `registerTools`. |\n| `supabase/functions/mcp-server/auth.ts` | Dual-mode auth + OAuth protected-resource metadata + CORS. |\n| `supabase/functions/mcp-server/tools/types.ts` | The base `ToolContext` type. Framework-owned; never overwritten. |\n| `supabase/functions/mcp-server/tools/index.ts` | The tool aggregator — **the one extension point**. |\n| `supabase/functions/mcp-server/tools/{echo,whoami}.ts` | Example tools. |\n| `supabase/functions/mcp-server/tools/{result,edge-function}.ts` | Shared helpers for consistent MCP results and typed Edge Function tool wrappers. |\n| `supabase/migrations/…_mcp_access_token_hook.sql` | Adds the resource URL to OAuth token audiences. |\n| `supabase/config.toml` | Auth (OAuth server + hook), edge runtime, function config. |\n\n## Composition contract\n\nThis is how tool templates extend the server without colliding under shadcn's\nwhole-file copy:\n\n- **Tool templates are purely additive.** They drop tool files under\n  `supabase/functions/mcp-server/tools/`, add their own timestamped migrations,\n  and import any shared library with a **relative path**\n  (`../../_shared/<lib>/mod.ts`). They **never** edit `index.ts`, `auth.ts`,\n  `types.ts`, or `deno.json`.\n- **Tools get their own dependencies from module singletons**, not from the base\n  `ToolContext`, so the framework never references a specific tool.\n- **Generic helpers live in the framework.** Use `result.ts` for consistent MCP\n  payloads and `edge-function.ts` for named, schema-validated Edge Function\n  tools. Do not expose a generic \"invoke any function\" dispatcher.\n- **`tools/index.ts` is the only contested file.** It is owned by the leaf: a\n  single tool template ships its own version; when several are composed, the\n  [headless-app](../headless-app) block ships the final aggregated version.\n\n## Adding a tool\n\n1. Create `supabase/functions/mcp-server/tools/my-tool.ts` exporting\n   `registerMyTool(server, context)` and calling `server.registerTool(...)`.\n2. Call it from `registerTools` in `tools/index.ts`.\n\n```ts\n// tools/my-tool.ts\nimport type { McpServer } from \"npm:@modelcontextprotocol/sdk@1.29.0/server/mcp.js\";\nimport { z } from \"npm:zod@4.4.3\";\nimport type { ToolContext } from \"./types.ts\";\n\nexport function registerMyTool(server: McpServer, { supabase }: ToolContext): void {\n  server.registerTool(\n    \"my_tool\",\n    { description: \"…\", inputSchema: { name: z.string() } },\n    async ({ name }) => {\n      const { data, error } = await supabase.from(\"things\").select(\"*\").eq(\"name\", name);\n      if (error) return { isError: true, content: [{ type: \"text\", text: error.message }] };\n      return { content: [{ type: \"text\", text: JSON.stringify(data) }] };\n    },\n  );\n}\n```\n\n## Configuration\n\n| Env var | Default | Purpose |\n| --- | --- | --- |\n| `MCP_SERVER_NAME` | `supabase-agent` | Display name shown in MCP clients. |\n| `MCP_SERVER_DESCRIPTION` | _(generic)_ | Server description / instructions. |\n| `MCP_ALLOW_FIRST_PARTY_JWT` | `true` | Accept first-party Supabase JWTs in addition to OAuth tokens. |\n| `MCP_RESOURCE_URL` | _(derived)_ | Override the canonical resource URL. **Required on hosted Supabase** (Edge Functions derive internal URLs). Also use for custom domains. |\n| `MCP_AUTH_ISSUER` | _(derived)_ | Override the canonical auth issuer. **Required on hosted Supabase.** Also use for custom domains. |\n\n## Local endpoint\n\nAfter `supabase start`:\n\n```text\nhttp://127.0.0.1:54321/functions/v1/mcp-server\n```\n\n## Dependencies\n\nRequires a Supabase project with Edge Functions enabled. Pairs with\n[mcp-auth-ui](../mcp-auth-ui) (OAuth UI), [mcp-sql](../mcp-sql) (database tool),\nand Supabase-native tool packs such as [mcp-workflows](../mcp-workflows),\n[mcp-storage](../mcp-storage), and [mcp-tenancy](../mcp-tenancy). The\n[headless-app](../headless-app) block bundles the common stack.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -1014,8 +708,7 @@
         "MCP Tools"
       ],
       "registryDependencies": [
-        "SaxonF/templates/mcp-server",
-        "SaxonF/templates/storage"
+        "SaxonF/templates/mcp-server"
       ],
       "files": [
         {
@@ -1029,7 +722,7 @@
           "target": "~/supabase/functions/mcp-server/tools/storage.ts"
         }
       ],
-      "docs": "# MCP Storage\n\nAdds Supabase Storage tools to the MCP server.\n\nThe tools use the signed-in user's Supabase client. Bucket policies and Storage\nRLS remain the authorization boundary.\n\n## Tools\n\n| Tool | Purpose |\n| --- | --- |\n| `list_storage_objects` | List objects under a bucket prefix. |\n| `create_signed_download_url` | Create a short-lived download URL. |\n| `create_signed_upload_url` | Create a short-lived upload URL. |\n| `move_storage_object` | Move/rename one object. |\n| `copy_storage_object` | Copy one object. |\n| `delete_storage_objects` | Delete up to 50 objects. |\n\n## Composition\n\nWhen this is the only tool template, its `tools/index.ts` works as-is. When\nseveral tool templates are composed, use a bundle such as **headless-app** or\nmanually merge the register calls into one final `tools/index.ts`.\n\n## Dependencies\n\nRequires **mcp-server** and **storage**.",
+      "docs": "# MCP Storage\n\nAdds Supabase Storage tools to the MCP server.\n\nThe tools use the signed-in user's Supabase client. Bucket policies and Storage\nRLS remain the authorization boundary.\n\n## Tools\n\n| Tool | Purpose |\n| --- | --- |\n| `list_storage_objects` | List objects under a bucket prefix. |\n| `create_signed_download_url` | Create a short-lived download URL. |\n| `create_signed_upload_url` | Create a short-lived upload URL. |\n| `move_storage_object` | Move/rename one object. |\n| `copy_storage_object` | Copy one object. |\n| `delete_storage_objects` | Delete up to 50 objects. |\n\n## Composition\n\nWhen this is the only tool template, its `tools/index.ts` works as-is. When\nseveral tool templates are composed, use a bundle such as **headless-app** or\nmanually merge the register calls into one final `tools/index.ts`.\n\n## Dependencies\n\nRequires **mcp-server**. Ships a `supabase/config/storage.toml` fragment to enable Storage — merge it into `supabase/config.toml`.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -1044,8 +737,7 @@
         "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-storage",
         "dependencies": {
           "required": [
-            "mcp-server",
-            "storage"
+            "mcp-server"
           ]
         }
       }
@@ -1104,8 +796,7 @@
         "MCP Tools"
       ],
       "registryDependencies": [
-        "SaxonF/templates/mcp-server",
-        "SaxonF/templates/durable-workflows"
+        "SaxonF/templates/mcp-server"
       ],
       "files": [
         {
@@ -1117,9 +808,19 @@
           "path": "templates/mcp-workflows/supabase/functions/mcp-server/tools/workflows.ts",
           "type": "registry:file",
           "target": "~/supabase/functions/mcp-server/tools/workflows.ts"
+        },
+        {
+          "path": "templates/mcp-workflows/supabase/functions/workflow-worker/index.ts",
+          "type": "registry:file",
+          "target": "~/supabase/functions/workflow-worker/index.ts"
+        },
+        {
+          "path": "templates/mcp-workflows/supabase/schemas/workflows.sql",
+          "type": "registry:file",
+          "target": "~/supabase/schemas/workflows.sql"
         }
       ],
-      "docs": "# MCP Workflows\n\nAdds MCP tools for the **durable-workflows** template.\n\nUse these tools when an agent needs to kick off work that should survive request\ntimeouts: imports, exports, document processing, billing reconciliation, or AI\nbatch jobs.\n\n## Tools\n\n| Tool | Purpose |\n| --- | --- |\n| `enqueue_workflow` | Create and enqueue a workflow run. |\n| `get_workflow_run` | Read one run with its steps and attempts. |\n| `list_workflow_runs` | List recent user-owned runs. |\n| `cancel_workflow` | Mark a queued/running/failed run as cancelled. |\n| `retry_workflow` | Requeue a failed, dead-lettered, or cancelled run. |\n\n## Security\n\nThe underlying **durable-workflows** schema stores `created_by` ownership,\nuses owner-scoped read policies, and exposes cancel/retry through\n`SECURITY DEFINER` RPCs that check `auth.uid()` and revoke public execution.\n\n## Dependencies\n\nRequires **mcp-server** and **durable-workflows**.",
+      "docs": "# MCP Workflows\n\nAdds MCP tools for durable, user-owned background workflows.\n\nUse these tools when an agent needs to kick off work that should survive request\ntimeouts: imports, exports, document processing, billing reconciliation, or AI\nbatch jobs.\n\n## Tools\n\n| Tool | Purpose |\n| --- | --- |\n| `enqueue_workflow` | Create and enqueue a workflow run. |\n| `get_workflow_run` | Read one run with its steps and attempts. |\n| `list_workflow_runs` | List recent user-owned runs. |\n| `cancel_workflow` | Mark a queued/running/failed run as cancelled. |\n| `retry_workflow` | Requeue a failed, dead-lettered, or cancelled run. |\n\n## Includes\n\n- `supabase/schemas/workflows.sql` — workflow runs, steps, attempts, and queue helpers\n- `supabase/functions/workflow-worker` — Edge Function worker scaffold\n\n## Security\n\nThe workflow schema stores `created_by` ownership, uses owner-scoped read\npolicies, and exposes cancel/retry through `SECURITY DEFINER` RPCs that check\n`auth.uid()` and revoke public execution.\n\n## Dependencies\n\nRequires **mcp-server**.",
       "meta": {
         "version": "1.0.0",
         "tags": [
@@ -1134,8 +835,7 @@
         "repository": "https://github.com/SaxonF/templates/tree/main/templates/mcp-workflows",
         "dependencies": {
           "required": [
-            "mcp-server",
-            "durable-workflows"
+            "mcp-server"
           ]
         }
       }
@@ -1148,10 +848,7 @@
       "categories": [
         "Access & Security"
       ],
-      "registryDependencies": [
-        "SaxonF/templates/auth",
-        "SaxonF/templates/database"
-      ],
+      "registryDependencies": [],
       "files": [
         {
           "path": "templates/multi-tenant-rbac/supabase/schemas/authorization.sql",
@@ -1164,18 +861,13 @@
           "target": "~/supabase/seed.sql"
         }
       ],
-      "docs": "# Multi-tenant RBAC template\n\nOrganization-scoped authorization for SaaS applications. Membership in an organization assigns a role, roles grant permissions, and RLS policies call `authorize(organization_id, permission)`.\n\nUse this template when users can belong to more than one organization and their permissions should be different in each organization.\n\n> **Foundation for [`mcp-tenancy`](../mcp-tenancy).** Agents inherit these tenant-scoped RLS policies; install the tool pack to let an agent resolve the caller's organizations and permissions.\n\n## Includes\n\n- Organizations and organization memberships\n- Organization-scoped roles and permissions\n- `create_organization()` bootstrap helper\n- `authorize()` helper for tenant-aware RLS policies\n- Example `projects` table with scalable tenant policies\n\n## How it works\n\nEvery tenant-owned row stores an `organization_id`. The current user's role for that organization is stored in `organization_members`, and each role receives permissions through `role_permissions`.\n\nRLS policies should check both tenant membership and the requested action by calling:\n\n```sql\npublic.authorize(organization_id, 'resource.action')\n```\n\nThat helper returns `true` only when the signed-in user is a member of the row's organization and their role grants the requested permission.\n\n## Getting started\n\nIf you expose tenant data through the **mcp-server** template, add a `list_organizations` discovery tool so MCP clients can resolve organization context without the user pasting UUIDs. See the mcp-server readme section **Multi-tenant apps**.\n\nCreate an organization from your app after the user signs in:\n\n```sql\nselect public.create_organization('Acme Inc', 'acme');\n```\n\nThe creator is automatically inserted into `organization_members` as the `owner`.\n\nInvite another user by inserting a membership row:\n\n```sql\ninsert into public.organization_members (organization_id, user_id, role)\nvalues\n  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'member');\n```\n\nThe insert is allowed only if the current user has `members.invite` for that organization. Assigning elevated roles such as `admin` or `owner` requires `members.update`.\n\n## Default roles\n\nThe seed file grants these permissions:\n\n| Role     | Intended use                                                       |\n| -------- | ------------------------------------------------------------------ |\n| `owner`  | Full organization, membership, and project control.                |\n| `admin`  | Manage organization settings, invite members, and manage projects. |\n| `member` | Read organization and membership data, and create/update projects. |\n\nAdjust `supabase/seed.sql` before production if your app needs a stricter default. For example, remove `projects.create` or `projects.update` from `member` for read-only members.\n\nWhen you install multiple templates, merge their `seed.sql` files manually — the shadcn installer overwrites `supabase/seed.sql` on each add. Keep the `role_permissions` inserts from this template.\n\n## Database setup\n\nDeclarative schemas under `supabase/schemas/` are not applied until a migration exists. On a fresh project:\n\n1. Start with an empty or comment-only `seed.sql` if needed.\n2. Run `supabase db diff -f initial_schema`.\n3. Restore `seed.sql` (including the default `role_permissions` rows below), then `supabase db reset`.\n\nSee the **database** template readme for details.\n\n## Adding permissions\n\nDefine new values on the `app_permission` enum in `authorization.sql` before using them in policies or seed data:\n\n```sql\ncreate type public.app_permission as enum (\n  'organizations.read',\n  -- ...\n  'documents.read',\n  'documents.create'\n);\n```\n\nDo not `ALTER TYPE ... ADD VALUE` and reference the new value in the same schema file or migration — PostgreSQL requires enum additions to be committed before use. Add enum values in one migration, then add policies and `role_permissions` rows in a follow-up diff.\n\nFor tenant-owned tables, add permissions to the enum definition (not `ALTER TYPE` in a downstream file), then add the table:\n\n```sql\ncreate table public.documents (\n  id uuid primary key default gen_random_uuid(),\n  organization_id uuid references public.organizations on delete cascade not null,\n  title text not null,\n  body text,\n  created_at timestamptz default now()\n);\n\ncreate index documents_organization_id_idx\non public.documents (organization_id);\n\nalter table public.documents enable row level security;\n```\n\nSeed `role_permissions` for the new resource:\n\n```sql\ninsert into public.role_permissions (role, permission)\nvalues\n  ('owner', 'documents.read'),\n  ('owner', 'documents.create'),\n  ('owner', 'documents.update'),\n  ('owner', 'documents.delete'),\n  ('admin', 'documents.read'),\n  ('admin', 'documents.create'),\n  ('admin', 'documents.update'),\n  ('admin', 'documents.delete'),\n  ('member', 'documents.read')\non conflict do nothing;\n```\n\nThen write one policy per operation:\n\n```sql\ncreate policy \"Authorized members can read documents\"\non public.documents\nfor select\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.read')));\n\ncreate policy \"Authorized members can create documents\"\non public.documents\nfor insert\nto authenticated\nwith check ((select public.authorize(organization_id, 'documents.create')));\n\ncreate policy \"Authorized members can update documents\"\non public.documents\nfor update\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.update')))\nwith check ((select public.authorize(organization_id, 'documents.update')));\n\ncreate policy \"Authorized members can delete documents\"\non public.documents\nfor delete\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.delete')));\n```\n\nUse `with check` on inserts and updates so users cannot create or move rows into organizations where they do not have permission.\n\n## Common policy patterns\n\nRead access for any organization member:\n\n```sql\nusing ((select public.authorize(organization_id, 'documents.read')))\n```\n\nWrite access for admins and owners only:\n\n```sql\nwith check ((select public.authorize(organization_id, 'documents.create')))\n```\n\nOwner-only access can be modeled as a permission that only `owner` receives. Add `billing.manage` to the `app_permission` enum in `authorization.sql`, then seed and policy:\n\n```sql\ninsert into public.role_permissions (role, permission)\nvalues ('owner', 'billing.manage')\non conflict do nothing;\n```\n\n```sql\nusing ((select public.authorize(organization_id, 'billing.manage')))\n```\n\n## Choosing permissions\n\nPrefer permissions that describe product actions rather than database internals:\n\n```text\nprojects.read\nprojects.create\nprojects.update\nprojects.delete\nmembers.invite\nbilling.manage\n```\n\nThis keeps policies stable when the schema changes and makes it easier to map UI actions to backend access.\n\n## Notes\n\nThis template does not rely on JWT custom claims for authorization. The database checks the current user's organization membership at query time, so a user can safely have different roles in different organizations.\n\n## Edge Functions\n\nFor shared TypeScript helpers that call `authorize()` from Edge Functions, add the **Edge RBAC Helpers** template. It adds `supabase/functions/_shared` helpers without creating a new function node in the composer diagram.\n\n## Dependencies\n\nRequires **database** and **auth**.",
+      "docs": "# Multi-tenant RBAC template\n\nOrganization-scoped authorization for SaaS applications. Membership in an organization assigns a role, roles grant permissions, and RLS policies call `authorize(organization_id, permission)`.\n\nUse this template when users can belong to more than one organization and their permissions should be different in each organization.\n\n> **Foundation for [`mcp-tenancy`](../mcp-tenancy).** Agents inherit these tenant-scoped RLS policies; install the tool pack to let an agent resolve the caller's organizations and permissions.\n\n## Includes\n\n- Organizations and organization memberships\n- Organization-scoped roles and permissions\n- `create_organization()` bootstrap helper\n- `authorize()` helper for tenant-aware RLS policies\n- Example `projects` table with scalable tenant policies\n\n## How it works\n\nEvery tenant-owned row stores an `organization_id`. The current user's role for that organization is stored in `organization_members`, and each role receives permissions through `role_permissions`.\n\nRLS policies should check both tenant membership and the requested action by calling:\n\n```sql\npublic.authorize(organization_id, 'resource.action')\n```\n\nThat helper returns `true` only when the signed-in user is a member of the row's organization and their role grants the requested permission.\n\n## Getting started\n\nIf you expose tenant data through the **mcp-server** template, add a `list_organizations` discovery tool so MCP clients can resolve organization context without the user pasting UUIDs. See the mcp-server readme section **Multi-tenant apps**.\n\nCreate an organization from your app after the user signs in:\n\n```sql\nselect public.create_organization('Acme Inc', 'acme');\n```\n\nThe creator is automatically inserted into `organization_members` as the `owner`.\n\nInvite another user by inserting a membership row:\n\n```sql\ninsert into public.organization_members (organization_id, user_id, role)\nvalues\n  ('00000000-0000-0000-0000-000000000000', '11111111-1111-1111-1111-111111111111', 'member');\n```\n\nThe insert is allowed only if the current user has `members.invite` for that organization. Assigning elevated roles such as `admin` or `owner` requires `members.update`.\n\n## Default roles\n\nThe seed file grants these permissions:\n\n| Role     | Intended use                                                       |\n| -------- | ------------------------------------------------------------------ |\n| `owner`  | Full organization, membership, and project control.                |\n| `admin`  | Manage organization settings, invite members, and manage projects. |\n| `member` | Read organization and membership data, and create/update projects. |\n\nAdjust `supabase/seed.sql` before production if your app needs a stricter default. For example, remove `projects.create` or `projects.update` from `member` for read-only members.\n\nWhen you install multiple templates, merge their `seed.sql` files manually — the shadcn installer overwrites `supabase/seed.sql` on each add. Keep the `role_permissions` inserts from this template.\n\n## Database setup\n\nDeclarative schemas under `supabase/schemas/` are not applied until a migration exists. On a fresh project:\n\n1. Start with an empty or comment-only `seed.sql` if needed.\n2. Run `supabase db diff -f initial_schema`.\n3. Restore `seed.sql` (including the default `role_permissions` rows below), then `supabase db reset`.\n\n## Adding permissions\n\nDefine new values on the `app_permission` enum in `authorization.sql` before using them in policies or seed data:\n\n```sql\ncreate type public.app_permission as enum (\n  'organizations.read',\n  -- ...\n  'documents.read',\n  'documents.create'\n);\n```\n\nDo not `ALTER TYPE ... ADD VALUE` and reference the new value in the same schema file or migration — PostgreSQL requires enum additions to be committed before use. Add enum values in one migration, then add policies and `role_permissions` rows in a follow-up diff.\n\nFor tenant-owned tables, add permissions to the enum definition (not `ALTER TYPE` in a downstream file), then add the table:\n\n```sql\ncreate table public.documents (\n  id uuid primary key default gen_random_uuid(),\n  organization_id uuid references public.organizations on delete cascade not null,\n  title text not null,\n  body text,\n  created_at timestamptz default now()\n);\n\ncreate index documents_organization_id_idx\non public.documents (organization_id);\n\nalter table public.documents enable row level security;\n```\n\nSeed `role_permissions` for the new resource:\n\n```sql\ninsert into public.role_permissions (role, permission)\nvalues\n  ('owner', 'documents.read'),\n  ('owner', 'documents.create'),\n  ('owner', 'documents.update'),\n  ('owner', 'documents.delete'),\n  ('admin', 'documents.read'),\n  ('admin', 'documents.create'),\n  ('admin', 'documents.update'),\n  ('admin', 'documents.delete'),\n  ('member', 'documents.read')\non conflict do nothing;\n```\n\nThen write one policy per operation:\n\n```sql\ncreate policy \"Authorized members can read documents\"\non public.documents\nfor select\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.read')));\n\ncreate policy \"Authorized members can create documents\"\non public.documents\nfor insert\nto authenticated\nwith check ((select public.authorize(organization_id, 'documents.create')));\n\ncreate policy \"Authorized members can update documents\"\non public.documents\nfor update\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.update')))\nwith check ((select public.authorize(organization_id, 'documents.update')));\n\ncreate policy \"Authorized members can delete documents\"\non public.documents\nfor delete\nto authenticated\nusing ((select public.authorize(organization_id, 'documents.delete')));\n```\n\nUse `with check` on inserts and updates so users cannot create or move rows into organizations where they do not have permission.\n\n## Common policy patterns\n\nRead access for any organization member:\n\n```sql\nusing ((select public.authorize(organization_id, 'documents.read')))\n```\n\nWrite access for admins and owners only:\n\n```sql\nwith check ((select public.authorize(organization_id, 'documents.create')))\n```\n\nOwner-only access can be modeled as a permission that only `owner` receives. Add `billing.manage` to the `app_permission` enum in `authorization.sql`, then seed and policy:\n\n```sql\ninsert into public.role_permissions (role, permission)\nvalues ('owner', 'billing.manage')\non conflict do nothing;\n```\n\n```sql\nusing ((select public.authorize(organization_id, 'billing.manage')))\n```\n\n## Choosing permissions\n\nPrefer permissions that describe product actions rather than database internals:\n\n```text\nprojects.read\nprojects.create\nprojects.update\nprojects.delete\nmembers.invite\nbilling.manage\n```\n\nThis keeps policies stable when the schema changes and makes it easier to map UI actions to backend access.\n\n## Notes\n\nThis template does not rely on JWT custom claims for authorization. The database checks the current user's organization membership at query time, so a user can safely have different roles in different organizations.\n\n## Edge Functions\n\nFor shared TypeScript helpers that call `authorize()` from Edge Functions, add the **Edge RBAC Helpers** template. It adds `supabase/functions/_shared` helpers without creating a new function node in the composer diagram.\n\n## Dependencies\n\nRequires a Supabase project with Auth enabled.",
       "meta": {
         "version": "1.0.0",
         "category": "Access & Security",
         "license": "MIT",
         "repository": "https://github.com/SaxonF/templates/tree/main/templates/multi-tenant-rbac",
-        "dependencies": {
-          "required": [
-            "auth",
-            "database"
-          ]
-        }
+        "dependencies": {}
       }
     },
     {
@@ -1187,8 +879,7 @@
         "Access & Security"
       ],
       "registryDependencies": [
-        "SaxonF/templates/multi-tenant-rbac",
-        "SaxonF/templates/functions"
+        "SaxonF/templates/multi-tenant-rbac"
       ],
       "files": [
         {
@@ -1212,7 +903,7 @@
           "target": "~/supabase/functions/_shared/types.ts"
         }
       ],
-      "docs": "# Edge RBAC Helpers template\n\nShared helpers for enforcing organization RBAC in Edge Functions, next to your application code. Use this when you want authorization at the application layer instead of relying on Postgres RLS policies.\n\nThe helpers use the **multi-tenant-rbac** schema (`public.authorize`) but run checks in your function handler before privileged logic executes. Import them from `../_shared/` to verify the caller's JWT and required permissions.\n\n## Includes\n\n- `supabase/functions/_shared/types.ts` — `AppPermission` and `AppRole` types aligned with the SQL enums\n- `supabase/functions/_shared/responses.ts` — small JSON error helpers\n- `supabase/functions/_shared/auth.ts` — user-scoped Supabase client and `requireUser`\n- `supabase/functions/_shared/authorize.ts` — `hasPermission`, `requirePermission`, and organization header helpers\n\nThese files live under `_shared` so they do not appear as deployable Edge Functions in the project diagram. They are still merged into the generated project and visible in the file explorer.\n\n## Example\n\n```ts\nimport 'jsr:@supabase/functions-js/edge-runtime.d.ts'\n\nimport { requireUser } from '../_shared/auth.ts'\nimport { getOrganizationId, requirePermission } from '../_shared/authorize.ts'\n\nDeno.serve(async (req) => {\n  const authResult = await requireUser(req)\n  if ('response' in authResult) return authResult.response\n\n  const organizationId = getOrganizationId(req)\n  if (!organizationId) {\n    return Response.json({ error: 'missing x-organization-id header' }, { status: 400 })\n  }\n\n  const permissionResult = await requirePermission(\n    authResult.client,\n    organizationId,\n    'projects.create'\n  )\n  if ('response' in permissionResult) return permissionResult.response\n\n  // business logic with authResult.client (RLS-scoped)\n  return Response.json({ ok: true })\n})\n```\n\nPass the active organization on each request (for example `x-organization-id`) so permission checks target the correct tenant.\n\n## Dependencies\n\nRequires **multi-tenant-rbac** and **functions** (which also pulls in **database**).",
+      "docs": "# Edge RBAC Helpers template\n\nShared helpers for enforcing organization RBAC in Edge Functions, next to your application code. Use this when you want authorization at the application layer instead of relying on Postgres RLS policies.\n\nThe helpers use the **multi-tenant-rbac** schema (`public.authorize`) but run checks in your function handler before privileged logic executes. Import them from `../_shared/` to verify the caller's JWT and required permissions.\n\n## Includes\n\n- `supabase/functions/_shared/types.ts` — `AppPermission` and `AppRole` types aligned with the SQL enums\n- `supabase/functions/_shared/responses.ts` — small JSON error helpers\n- `supabase/functions/_shared/auth.ts` — user-scoped Supabase client and `requireUser`\n- `supabase/functions/_shared/authorize.ts` — `hasPermission`, `requirePermission`, and organization header helpers\n\nThese files live under `_shared` so they do not appear as deployable Edge Functions in the project diagram. They are still merged into the generated project and visible in the file explorer.\n\n## Example\n\n```ts\nimport 'jsr:@supabase/functions-js/edge-runtime.d.ts'\n\nimport { requireUser } from '../_shared/auth.ts'\nimport { getOrganizationId, requirePermission } from '../_shared/authorize.ts'\n\nDeno.serve(async (req) => {\n  const authResult = await requireUser(req)\n  if ('response' in authResult) return authResult.response\n\n  const organizationId = getOrganizationId(req)\n  if (!organizationId) {\n    return Response.json({ error: 'missing x-organization-id header' }, { status: 400 })\n  }\n\n  const permissionResult = await requirePermission(\n    authResult.client,\n    organizationId,\n    'projects.create'\n  )\n  if ('response' in permissionResult) return permissionResult.response\n\n  // business logic with authResult.client (RLS-scoped)\n  return Response.json({ ok: true })\n})\n```\n\nPass the active organization on each request (for example `x-organization-id`) so permission checks target the correct tenant.\n\n## Dependencies\n\nRequires **multi-tenant-rbac**.",
       "meta": {
         "version": "1.0.0",
         "category": "Access & Security",
@@ -1220,131 +911,7 @@
         "repository": "https://github.com/SaxonF/templates/tree/main/templates/multi-tenant-rbac-edge-auth",
         "dependencies": {
           "required": [
-            "multi-tenant-rbac",
-            "functions"
-          ]
-        }
-      }
-    },
-    {
-      "name": "observability-logs",
-      "type": "registry:item",
-      "title": "App Logs",
-      "description": "Structured application logs table for debugging and audits",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database"
-      ],
-      "files": [
-        {
-          "path": "templates/observability-logs/supabase/schemas/observability.sql",
-          "type": "registry:file",
-          "target": "~/supabase/schemas/observability.sql"
-        }
-      ],
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/observability-logs",
-        "dependencies": {
-          "required": [
-            "database"
-          ]
-        }
-      }
-    },
-    {
-      "name": "queues",
-      "type": "registry:item",
-      "title": "Queues (pgmq)",
-      "description": "pgmq extension with a default job queue for background processing",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database"
-      ],
-      "files": [
-        {
-          "path": "templates/queues/supabase/schemas/queues.sql",
-          "type": "registry:file",
-          "target": "~/supabase/schemas/queues.sql"
-        }
-      ],
-      "docs": "# Queues template\n\nBackground job queues using Supabase Queues with worker-friendly schema and policies.\n\n## Includes\n\n- Queue tables and enqueue helpers\n- RLS for secure job submission\n\n## Dependencies\n\nRequires **database** and **functions**.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/queues",
-        "dependencies": {
-          "required": [
-            "database"
-          ]
-        }
-      }
-    },
-    {
-      "name": "security-rls",
-      "type": "registry:item",
-      "title": "Auto-enable RLS",
-      "description": "Event trigger that automatically enables Row Level Security on new public tables",
-      "categories": [
-        "Access & Security"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database"
-      ],
-      "files": [
-        {
-          "path": "templates/security-rls/supabase/schemas/security.sql",
-          "type": "registry:file",
-          "target": "~/supabase/schemas/security.sql"
-        }
-      ],
-      "docs": "# Security RLS template\n\nBaseline row level security patterns for common Supabase tables and auth-aware policies.\n\n## Includes\n\n- Example secured tables\n- Reusable RLS policy templates\n\n## Dependencies\n\nRequires **database** and **auth**.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Access & Security",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/security-rls",
-        "dependencies": {
-          "required": [
-            "database"
-          ]
-        }
-      }
-    },
-    {
-      "name": "storage",
-      "type": "registry:item",
-      "title": "Storage",
-      "description": "S3-compatible object storage for files",
-      "categories": [
-        "Backing Services"
-      ],
-      "registryDependencies": [
-        "SaxonF/templates/database"
-      ],
-      "files": [
-        {
-          "path": "templates/storage/supabase/config/storage.toml",
-          "type": "registry:file",
-          "target": "~/supabase/config/storage.toml"
-        }
-      ],
-      "docs": "# Storage template\n\nS3-compatible object storage configuration for local development.\n\n> **Powers [`mcp-storage`](../mcp-storage).** This is a backing service — install the tool pack to give an agent user-scoped file access.\n\n## Configuration\n\nThis template installs `supabase/config/storage.toml` — a partial config fragment. Merge its sections into `supabase/config.toml` alongside any other fragments under `supabase/config/*.toml`.\n\n## Dependencies\n\nRequires **database**.",
-      "meta": {
-        "version": "1.0.0",
-        "category": "Backing Services",
-        "license": "MIT",
-        "repository": "https://github.com/SaxonF/templates/tree/main/templates/storage",
-        "dependencies": {
-          "required": [
-            "database"
+            "multi-tenant-rbac"
           ]
         }
       }

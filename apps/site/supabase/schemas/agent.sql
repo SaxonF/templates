@@ -1,5 +1,5 @@
 -- Persistent sessions, memory, and MCP server configuration for streaming AI agents.
--- Pair with ai-vector-search or ai-automatic-embeddings for embedding generation and recall.
+-- Agent sessions, messages, memory, and MCP server configuration.
 
 create table if not exists public.agent_sessions (
   id uuid primary key default gen_random_uuid(),

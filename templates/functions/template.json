@@ -1,9 +1,0 @@
-{
-  "id": "functions",
-  "name": "Edge Functions",
-  "description": "Deno-based serverless functions at the edge",
-  "category": "Backing Services",
-  "version": "1.0.0",
-  "license": "MIT",
-  "repository": "https://github.com/SaxonF/templates/tree/main/templates/functions"
-}

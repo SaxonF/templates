@@ -43,4 +43,4 @@ manually merge the register calls into one final `tools/index.ts`.
 
 ## Dependencies
 
-Requires **mcp-server** and **functions**.
+Requires **mcp-server**. Ships a `supabase/config/functions.toml` fragment — merge it into `supabase/config.toml`.
