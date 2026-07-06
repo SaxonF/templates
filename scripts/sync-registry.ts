@@ -72,6 +72,11 @@ export async function syncRegistry(packageRoot = defaultPackageRoot) {
     path.join(packageRoot, 'registry.json'),
     `${JSON.stringify(rootRegistry, null, 2)}\n`
   )
+
+  await writeFile(
+    path.join(packageRoot, 'apps/site/registry.json'),
+    `${JSON.stringify(rootRegistry, null, 2)}\n`
+  )
 }
 
 async function listTemplateIds(packageRoot: string): Promise<string[]> {

@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "build": "pnpm --filter @saxonf/site build",
     "sync-registry": "tsx scripts/sync-registry.ts"
   },
   "devDependencies": {

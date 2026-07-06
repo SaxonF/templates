@@ -1,4 +1,4 @@
-import registry from '../../../../registry.json'
+import registry from '../../registry.json'
 
 export interface TemplateSummary {
   id: string
