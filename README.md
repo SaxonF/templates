@@ -1,6 +1,6 @@
 # Supabase templates
 
-A [shadcn GitHub registry](https://ui.shadcn.com/docs/registry/github) of Supabase project templates. Install SQL schemas and Edge Functions into your project with the shadcn CLI. Config is shipped as per-template fragments under `supabase/config/*.toml` for you or your agent to merge into `supabase/config.toml`.
+A [shadcn GitHub registry](https://ui.shadcn.com/docs/registry/github) of Supabase templates for building AI agents and agent-compatible software. Install streaming chat, MCP servers, tool packs, and tenancy with the shadcn CLI. Config ships as per-template fragments under `supabase/config/*.toml` for you or your agent to merge into `supabase/config.toml`.
 
 **Registry address:** `SaxonF/templates`
 

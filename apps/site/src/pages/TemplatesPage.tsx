@@ -18,8 +18,9 @@ export function TemplatesPage() {
       <div className="mx-auto w-full max-w-[720px]">
         <h1 className="text-2xl font-medium text-white">Templates</h1>
         <p className="mt-3 text-[15px] leading-[1.45] text-[#9aa0a8]">
-          Supabase building blocks you can add to a project with the shadcn CLI. Each template ships
-          config, schemas, Edge Functions, and docs for a focused capability.
+          Supabase templates for building AI agents and agent-compatible software. Install any one
+          with the shadcn CLI — each ships config, schemas, Edge Functions, and docs for a focused
+          piece of the agent stack.
         </p>
 
         <div className="relative mt-6 w-full">
