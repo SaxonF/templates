@@ -6,14 +6,16 @@ The agent is **standalone** — it connects to whatever MCP servers are deployed
 
 ## What's included
 
-| Asset         | Path                                      | Purpose                                      |
-| ------------- | ----------------------------------------- | -------------------------------------------- |
-| Schema        | `supabase/schemas/agent.sql`              | Sessions, messages, memory, MCP servers, RLS |
-| Edge Function | `supabase/functions/agent-chat/index.ts`  | Streaming AI SDK chat endpoint               |
+| Asset         | Path                                              | Purpose                                              |
+| ------------- | ------------------------------------------------- | ---------------------------------------------------- |
+| Schema        | `supabase/schemas/public/tables/agent_*.sql`      | `agent_sessions`, `agent_memories`, `agent_mcp_servers` (+ RLS, grants) |
+| Edge Function | `supabase/functions/agent-chat/index.ts`          | Streaming AI SDK chat endpoint                       |
+
+The schema follows the pg-delta declarative layout — one file per table under `schemas/public/tables/`, each carrying its own RLS policies and grants.
 
 ### Sessions and messages
 
-Each session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response. The function verifies the caller's JWT, then writes sessions and messages with the service role — grant `service_role` table access in `agent.sql` so those inserts succeed.
+Each session belongs to a user. `agent-chat` creates a session when `sessionId` is omitted, appends the user message, streams the model response, then persists the assistant response. The function verifies the caller's JWT, then writes sessions and messages with the service role — the `service_role` grants in `agent_sessions.sql` and `agent_memories.sql` let those inserts succeed.
 
 ### Memory and recall
 
@@ -82,7 +84,7 @@ Tool names are namespaced as `<server>_<tool>` (e.g. `project_list_notes`). Ment
 4. Deploy Edge Functions: `supabase functions deploy agent-chat`.
 5. From your app, POST `{ message, sessionId? }` to `agent-chat` and read the streamed text response.
 
-For production, review RLS policies in `agent.sql`, restrict service-role usage to server-side agent loops, and avoid storing long-lived third-party MCP secrets directly in `agent_mcp_servers.headers`.
+For production, review the RLS policies in the `agent_*` table files, restrict service-role usage to server-side agent loops, and avoid storing long-lived third-party MCP secrets directly in `agent_mcp_servers.headers`.
 
 ## MCP tool schemas
 
